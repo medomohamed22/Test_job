@@ -6,7 +6,6 @@
     <title>محرك بحث الوظائف | شغلني</title>
     <!-- Tailwind CSS للتصميم -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- خط كايرو لدعم اللغة العربية -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
         body { 
@@ -19,7 +18,6 @@
             -webkit-box-orient: vertical;  
             overflow: hidden;
         }
-        /* تحسين شكل القوائم المنسدلة */
         select {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
             background-position: left 0.5rem center;
@@ -36,8 +34,6 @@
     <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-xl pb-24 pt-16 rounded-b-[3rem] relative">
         <div class="container mx-auto px-4 text-center">
             <h1 class="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">انطلق نحو وظيفة أحلامك 🚀</h1>
-            
-            <!-- شرح مبسط للموقع -->
             <p class="max-w-2xl mx-auto text-blue-100 text-lg sm:text-xl leading-relaxed mb-8">
                 منصتك الذكية للبحث عن الوظائف. نجمع لك آلاف الفرص من مختلف الشركات حول العالم في مكان واحد. 
                 سواء كنت تبحث عن عمل من المنزل أو في مقر الشركة، خياراتنا تناسب طموحك.
@@ -45,16 +41,16 @@
         </div>
     </header>
 
-    <!-- لوحة البحث والفلاتر (مرفوعة لأعلى قليلاً لتعطي شكلاً احترافياً) -->
+    <!-- لوحة البحث والفلاتر -->
     <section class="container mx-auto px-4 -mt-16 relative z-10">
         <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                 
-                <!-- مربع البحث عن المسمى الوظيفي -->
+                <!-- مربع البحث -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-bold text-gray-700 mb-2">المسمى الوظيفي</label>
                     <input type="text" id="searchInput" placeholder="مثال: Frontend Developer, محاسب..." 
-                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         onkeypress="handleKeyPress(event)">
                 </div>
 
@@ -97,7 +93,6 @@
 
     <!-- قسم عرض النتائج -->
     <main class="container mx-auto px-4 py-12">
-        
         <!-- مؤشر التحميل -->
         <div id="loading" class="text-center text-lg text-blue-600 font-bold hidden my-10 flex flex-col items-center justify-center">
             <svg class="animate-spin h-12 w-12 mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -108,16 +103,11 @@
         </div>
         
         <!-- شبكة الوظائف -->
-        <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- سيتم إضافة بطاقات الوظائف هنا -->
-        </div>
+        <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </main>
 
-    <!-- الجافاسكربت -->
+    <!-- الجافاسكربت الخاص بالواجهة -->
     <script>
-        // مفتاح الـ API الخاص بك
-        const API_KEY = '15381654fdf0e35a2423170aa385065b37f2b9bcdb523273be4ddb65a7404d6e';
-
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 searchJobs();
@@ -125,15 +115,12 @@
         }
 
         async function searchJobs() {
-            // جلب القيم من مربعات الإدخال والفلاتر
             const searchInput = document.getElementById('searchInput').value;
             const locationFilter = document.getElementById('locationFilter').value;
             const workTypeFilter = document.getElementById('workTypeFilter').value;
             
-            // تحديد الكلمة المفتاحية للبحث
             let query = searchInput.trim() !== '' ? searchInput : 'Developer';
 
-            // إضافة نوع العمل (Remote أو Onsite) إلى كلمة البحث لتوجيه محرك جوجل
             if (workTypeFilter === 'remote') {
                 query += ' remote';
             } else if (workTypeFilter === 'onsite') {
@@ -147,24 +134,30 @@
             loadingIndicator.classList.remove('hidden');
 
             try {
-                // بناء رابط الـ API
-                // hl=ar لضمان توافق النتائج مع اللغة العربية قدر الإمكان
-                let serpApiUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${API_KEY}&hl=ar`;
-                
-                // إذا تم اختيار دولة، نضيفها إلى الرابط
+                // الاتصال بالخادم الخاص بنا
+                let apiUrl = `http://localhost:3000/api/jobs?q=${encodeURIComponent(query)}`;
                 if (locationFilter !== '') {
-                    serpApiUrl += `&location=${encodeURIComponent(locationFilter)}`;
+                    apiUrl += `&location=${encodeURIComponent(locationFilter)}`;
                 }
 
-                const targetUrl = encodeURIComponent(serpApiUrl);
-                const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}`;
-
-                const response = await fetch(proxyUrl);
+                const response = await fetch(apiUrl);
                 const data = await response.json();
                 
                 loadingIndicator.classList.add('hidden');
 
-                const jobs = data.jobs_results || [];
+                // فحص الأخطاء المرسلة من السيرفر (مثل نفاذ الباقة)
+                if (!response.ok || data.error) {
+                    const errorMsg = data.error || 'حدث خطأ غير معروف';
+                    resultsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-red-100 shadow-sm">
+                        <span class="text-4xl mb-4 block">⚠️</span>
+                        <p class="text-red-600 font-bold text-xl mb-2">رسالة من الخادم: ${errorMsg}</p>
+                        <p class="text-gray-500">إذا كانت الرسالة تتعلق بـ Quota فهذا يعني أن رصيد بحثك المجاني قد انتهى.</p>
+                    </div>`;
+                    return;
+                }
+
+                const jobs = data.jobs || [];
 
                 if (jobs.length > 0) {
                     jobs.forEach(job => {
@@ -212,7 +205,12 @@
             } catch (error) {
                 console.error("Error:", error);
                 loadingIndicator.classList.add('hidden');
-                resultsContainer.innerHTML = '<div class="col-span-full text-center text-red-500 text-xl py-12 bg-white rounded-2xl border border-red-100">حدث خطأ في جلب البيانات، يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.</div>';
+                resultsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-red-100 shadow-sm">
+                        <span class="text-4xl mb-4 block">🔌</span>
+                        <p class="text-red-600 font-bold text-xl mb-2">لا يمكن الاتصال بالخادم!</p>
+                        <p class="text-gray-500">تأكد من تشغيل ملف <b>server.js</b> في موجه الأوامر (Terminal) باستخدام الأمر: <code>node server.js</code></p>
+                    </div>`;
             }
         }
 
