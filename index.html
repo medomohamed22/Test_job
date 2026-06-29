@@ -2,16 +2,16 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محرك بحث الوظائف</title>
-    <!-- استدعاء مكتبة Tailwind CSS للتصميم -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>محرك بحث الوظائف | شغلني</title>
+    <!-- Tailwind CSS للتصميم -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- استدعاء خط كايرو لدعم اللغة العربية بشكل جميل -->
+    <!-- خط كايرو لدعم اللغة العربية -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
         body { 
             font-family: 'Cairo', sans-serif; 
-            background-color: #f3f4f6;
+            background-color: #f8fafc;
         }
         .line-clamp-3 {
             display: -webkit-box;
@@ -19,51 +19,105 @@
             -webkit-box-orient: vertical;  
             overflow: hidden;
         }
+        /* تحسين شكل القوائم المنسدلة */
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: left 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-left: 2.5rem;
+            appearance: none;
+        }
     </style>
 </head>
-<body>
+<body class="text-gray-800">
 
-    <!-- قسم الهيدر وشريط البحث -->
-    <header class="bg-blue-700 text-white shadow-md py-12 mb-8">
+    <!-- قسم الهيدر والنبذة التعريفية -->
+    <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-xl pb-24 pt-16 rounded-b-[3rem] relative">
         <div class="container mx-auto px-4 text-center">
-            <h1 class="text-4xl font-bold mb-4">ابحث عن وظيفة أحلامك</h1>
-            <p class="mb-8 text-blue-200 text-lg">محرك بحث سريع للوظائف باستخدام Google Jobs API</p>
+            <h1 class="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">انطلق نحو وظيفة أحلامك 🚀</h1>
             
-            <div class="flex justify-center max-w-2xl mx-auto shadow-lg rounded-lg overflow-hidden">
-                <input type="text" id="searchInput" placeholder="ابحث عن وظيفة.. مثال: Frontend Developer, Barista" 
-                    class="w-full p-4 text-gray-800 focus:outline-none text-lg"
-                    onkeypress="handleKeyPress(event)">
-                <button onclick="searchJobs()" 
-                    class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 px-8 py-4 font-bold text-lg transition duration-300 w-32">
-                    ابحث
-                </button>
-            </div>
+            <!-- شرح مبسط للموقع -->
+            <p class="max-w-2xl mx-auto text-blue-100 text-lg sm:text-xl leading-relaxed mb-8">
+                منصتك الذكية للبحث عن الوظائف. نجمع لك آلاف الفرص من مختلف الشركات حول العالم في مكان واحد. 
+                سواء كنت تبحث عن عمل من المنزل أو في مقر الشركة، خياراتنا تناسب طموحك.
+            </p>
         </div>
     </header>
 
+    <!-- لوحة البحث والفلاتر (مرفوعة لأعلى قليلاً لتعطي شكلاً احترافياً) -->
+    <section class="container mx-auto px-4 -mt-16 relative z-10">
+        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                
+                <!-- مربع البحث عن المسمى الوظيفي -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">المسمى الوظيفي</label>
+                    <input type="text" id="searchInput" placeholder="مثال: Frontend Developer, محاسب..." 
+                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                        onkeypress="handleKeyPress(event)">
+                </div>
+
+                <!-- فلتر الدولة -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">موقع العمل (البلد)</label>
+                    <select id="locationFilter" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                        <option value="">كل الدول (عالمي)</option>
+                        <option value="Egypt">مصر</option>
+                        <option value="Saudi Arabia">السعودية</option>
+                        <option value="United Arab Emirates">الإمارات</option>
+                        <option value="Qatar">قطر</option>
+                        <option value="Kuwait">الكويت</option>
+                        <option value="United States">الولايات المتحدة</option>
+                        <option value="United Kingdom">المملكة المتحدة</option>
+                    </select>
+                </div>
+
+                <!-- فلتر نوع العمل -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">نوع العمل</label>
+                    <select id="workTypeFilter" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                        <option value="">الكل (عن بعد / حضوري)</option>
+                        <option value="remote">عمل عن بعد (Remote)</option>
+                        <option value="onsite">في مقر الشركة (On-site)</option>
+                    </select>
+                </div>
+
+                <!-- زر البحث -->
+                <div class="md:col-span-4 mt-2">
+                    <button onclick="searchJobs()" 
+                        class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold text-lg py-3 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-0.5">
+                        ابحث الآن 🔍
+                    </button>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+
     <!-- قسم عرض النتائج -->
-    <main class="container mx-auto px-4 pb-12">
+    <main class="container mx-auto px-4 py-12">
+        
         <!-- مؤشر التحميل -->
-        <div id="loading" class="text-center text-xl text-blue-600 font-bold hidden my-10">
-            <svg class="animate-spin h-10 w-10 mx-auto mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div id="loading" class="text-center text-lg text-blue-600 font-bold hidden my-10 flex flex-col items-center justify-center">
+            <svg class="animate-spin h-12 w-12 mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            جاري البحث عن الوظائف...
+            <span>جاري البحث في آلاف الوظائف...</span>
         </div>
         
         <!-- شبكة الوظائف -->
         <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- سيتم إضافة بطاقات الوظائف هنا عبر الجافاسكربت -->
+            <!-- سيتم إضافة بطاقات الوظائف هنا -->
         </div>
     </main>
 
-    <!-- الجافاسكربت (منطق جلب البيانات) -->
+    <!-- الجافاسكربت -->
     <script>
         // مفتاح الـ API الخاص بك
         const API_KEY = '15381654fdf0e35a2423170aa385065b37f2b9bcdb523273be4ddb65a7404d6e';
 
-        // دالة للبحث عند الضغط على زر Enter
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 searchJobs();
@@ -71,48 +125,71 @@
         }
 
         async function searchJobs() {
+            // جلب القيم من مربعات الإدخال والفلاتر
             const searchInput = document.getElementById('searchInput').value;
-            const query = searchInput.trim() !== '' ? searchInput : 'Barista'; // وظيفة افتراضية إذا كان المربع فارغاً
+            const locationFilter = document.getElementById('locationFilter').value;
+            const workTypeFilter = document.getElementById('workTypeFilter').value;
+            
+            // تحديد الكلمة المفتاحية للبحث
+            let query = searchInput.trim() !== '' ? searchInput : 'Developer';
+
+            // إضافة نوع العمل (Remote أو Onsite) إلى كلمة البحث لتوجيه محرك جوجل
+            if (workTypeFilter === 'remote') {
+                query += ' remote';
+            } else if (workTypeFilter === 'onsite') {
+                query += ' onsite';
+            }
+
             const resultsContainer = document.getElementById('results');
             const loadingIndicator = document.getElementById('loading');
 
-            // تفريغ النتائج السابقة وإظهار التحميل
             resultsContainer.innerHTML = '';
             loadingIndicator.classList.remove('hidden');
 
             try {
-                // رابط SerpApi الأصلي
-                const targetUrl = encodeURIComponent(`https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${API_KEY}&hl=en`);
+                // بناء رابط الـ API
+                // hl=ar لضمان توافق النتائج مع اللغة العربية قدر الإمكان
+                let serpApiUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${API_KEY}&hl=ar`;
                 
-                // استخدام AllOrigins كـ Proxy لتخطي حظر الـ CORS في المتصفح
+                // إذا تم اختيار دولة، نضيفها إلى الرابط
+                if (locationFilter !== '') {
+                    serpApiUrl += `&location=${encodeURIComponent(locationFilter)}`;
+                }
+
+                const targetUrl = encodeURIComponent(serpApiUrl);
                 const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}`;
 
                 const response = await fetch(proxyUrl);
                 const data = await response.json();
                 
-                // إخفاء التحميل
                 loadingIndicator.classList.add('hidden');
 
                 const jobs = data.jobs_results || [];
 
                 if (jobs.length > 0) {
                     jobs.forEach(job => {
-                        // استخراج البيانات الفرعية (إن وُجدت)
                         const scheduleType = job.detected_extensions?.schedule_type || 'غير محدد';
-                        const salary = job.detected_extensions?.salary || 'غير معلن';
-                        const postedAt = job.detected_extensions?.posted_at || '';
+                        const salary = job.detected_extensions?.salary || 'الراتب غير معلن';
+                        const postedAt = job.detected_extensions?.posted_at || 'مؤخراً';
 
-                        // إنشاء بطاقة الوظيفة
                         const jobCard = `
-                            <div class="bg-white rounded-xl shadow hover:shadow-2xl transition duration-300 flex flex-col overflow-hidden border border-gray-200">
+                            <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden border border-gray-100 transform hover:-translate-y-1">
                                 <div class="p-6 flex-grow">
                                     <h2 class="text-xl font-bold text-gray-900 mb-2" dir="ltr">${job.title}</h2>
-                                    <div class="text-blue-600 font-semibold mb-1" dir="ltr">🏢 ${job.company_name}</div>
-                                    <div class="text-gray-500 text-sm mb-4" dir="ltr">📍 ${job.location} ${postedAt ? '• ⏱️ ' + postedAt : ''}</div>
+                                    <div class="text-indigo-600 font-bold mb-2" dir="ltr">🏢 ${job.company_name}</div>
+                                    <div class="text-gray-500 text-sm mb-4 flex items-center flex-wrap gap-2" dir="ltr">
+                                        <span>📍 ${job.location}</span> 
+                                        <span class="text-gray-300">•</span> 
+                                        <span>⏱️ ${postedAt}</span>
+                                    </div>
                                     
                                     <div class="flex flex-wrap gap-2 mb-4" dir="ltr">
-                                        <span class="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full border border-blue-200">${scheduleType}</span>
-                                        <span class="bg-green-50 text-green-700 text-xs px-3 py-1 rounded-full border border-green-200">💵 ${salary}</span>
+                                        <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100">
+                                            ⏳ ${scheduleType}
+                                        </span>
+                                        <span class="bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-100">
+                                            💵 ${salary}
+                                        </span>
                                     </div>
                                     
                                     <p class="text-gray-600 text-sm line-clamp-3 leading-relaxed" dir="ltr">
@@ -121,7 +198,7 @@
                                 </div>
                                 <div class="p-4 bg-gray-50 border-t border-gray-100">
                                     <a href="${job.share_link}" target="_blank" 
-                                        class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition duration-200">
+                                        class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition duration-200">
                                         التقديم للوظيفة
                                     </a>
                                 </div>
@@ -130,16 +207,16 @@
                         resultsContainer.innerHTML += jobCard;
                     });
                 } else {
-                    resultsContainer.innerHTML = '<div class="col-span-full text-center text-gray-500 text-xl py-10">لم يتم العثور على وظائف مطابقة لبحثك. جرب كلمات أخرى.</div>';
+                    resultsContainer.innerHTML = '<div class="col-span-full text-center text-gray-600 text-xl py-12 bg-white rounded-2xl border border-gray-100">لم يتم العثور على وظائف مطابقة للبحث. جرب تغيير الدولة أو المسمى الوظيفي.</div>';
                 }
             } catch (error) {
                 console.error("Error:", error);
                 loadingIndicator.classList.add('hidden');
-                resultsContainer.innerHTML = '<div class="col-span-full text-center text-red-500 text-xl py-10">حدث خطأ أثناء جلب البيانات. يرجى المحاولة لاحقاً.</div>';
+                resultsContainer.innerHTML = '<div class="col-span-full text-center text-red-500 text-xl py-12 bg-white rounded-2xl border border-red-100">حدث خطأ في جلب البيانات، يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.</div>';
             }
         }
 
-        // تشغيل بحث افتراضي فور فتح الصفحة
+        // تشغيل بحث افتراضي عند فتح الصفحة
         window.onload = searchJobs;
     </script>
 </body>
