@@ -38,6 +38,17 @@
                 منصتك الذكية للبحث عن الوظائف. نجمع لك آلاف الفرص من مختلف الشركات حول العالم في مكان واحد. 
                 سواء كنت تبحث عن عمل من المنزل أو في مقر الشركة، خياراتنا تناسب طموحك.
             </p>
+
+            <!-- قسم تسجيل الدخول الجديد Pi OIDC -->
+            <div id="auth-section" class="max-w-xs mx-auto mb-4">
+                <button onclick="redirectToPiLogin()" id="pi-login-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition duration-300 flex items-center justify-center gap-2 mx-auto">
+                    <span class="text-xl font-mono">π</span> تسجيل الدخول بواسطة Pi Network
+                </button>
+                <div id="user-profile" class="hidden bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 flex items-center justify-between gap-4">
+                    <p class="text-sm">مرحباً بك، <span id="pi-username" class="font-bold text-yellow-400"></span> 👋</p>
+                    <button onclick="logoutPi()" class="text-xs bg-red-500/80 hover:bg-red-600 text-white px-2 py-1 rounded-lg transition">خروج</button>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -106,14 +117,91 @@
         <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </main>
 
-    <!-- الجافاسكربت الخاص بالواجهة -->
+    <!-- الجافاسكربت الخاص بالواجهة والـ OIDC -->
     <script>
+        // إعدادات تطبيق Pi الخاصة بك (استبدل القيم بما يناسب حسابك في Develop.pi لاحقاً)
+        const PI_CLIENT_ID = 'DE9gV41Op9HQV9I8kLDKibDLTJp41g6wmHqesVMpylc'; 
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 searchJobs();
             }
         }
 
+        // 1. توجيه المستخدم لصفحة تسجيل دخول Pi الآمنة خارج المتصفح الخاص بـ Pi
+        function redirectToPiLogin() {
+            const state = Math.random().toString(36).substring(2); 
+            localStorage.setItem('pi_auth_state', state);
+
+            const piLoginUrl = `https://login.minepi.com/oauth2/authorize` +
+                `?response_type=code` +
+                `&client_id=${encodeURIComponent(PI_CLIENT_ID)}` +
+                `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+                `&scope=openid%20username` +
+                `&state=${state}`;
+
+            window.location.href = piLoginUrl;
+        }
+
+        // 2. تحديث واجهة المستخدم وعرض الاسم
+        function showUserProfile(user) {
+            document.getElementById('pi-login-btn').classList.add('hidden');
+            const profileDiv = document.getElementById('user-profile');
+            profileDiv.classList.remove('hidden');
+            document.getElementById('pi-username').innerText = user.username;
+            localStorage.setItem('pi_user', JSON.stringify(user));
+        }
+
+        // 3. تسجيل الخروج وحذف البيانات المسجلة
+        function logoutPi() {
+            localStorage.removeItem('pi_user');
+            document.getElementById('user-profile').classList.add('hidden');
+            document.getElementById('pi-login-btn').classList.remove('hidden');
+        }
+
+        // فحص حالة العودة من Pi أو الجلسة السابقة عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const savedState = localStorage.getItem('pi_auth_state');
+
+            // إذا عاد المستخدم محملاً بكود توثيق Pi الصالح
+            if (code && state === savedState) {
+                localStorage.removeItem('pi_auth_state');
+                window.history.replaceState({}, document.title, window.location.pathname); // تنظيف الرابط
+
+                try {
+                    // إرسال الكود للسيرفر للحصول على التوكن والـ Profile
+                    const response = await fetch('/api/pi-login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code, redirect_uri: REDIRECT_URI })
+                    });
+                    
+                    const userData = await response.json();
+                    if (response.ok && userData.username) {
+                        showUserProfile(userData);
+                    } else {
+                        alert('فشل التحقق من الحساب: ' + (userData.error || 'خطأ غير معروف'));
+                    }
+                } catch (error) {
+                    console.error('Error during API verification:', error);
+                }
+            } else {
+                // محاولة استعادة الجلسة المخزنة محلياً إن وجدت
+                const savedUser = localStorage.getItem('pi_user');
+                if (savedUser) {
+                    showUserProfile(JSON.parse(savedUser));
+                }
+            }
+
+            // تشغيل البحث الافتراضي للموقع تلقائياً
+            searchJobs();
+        });
+
+        // دالة جلب الوظائف (كما هي في ملفك الأصلي دون تغيير)
         async function searchJobs() {
             const searchInput = document.getElementById('searchInput').value;
             const locationFilter = document.getElementById('locationFilter').value;
@@ -134,7 +222,6 @@
             loadingIndicator.classList.remove('hidden');
 
             try {
-                // الاتصال بالخادم الخاص بنا
                 let apiUrl = `/api/jobs?q=${encodeURIComponent(query)}`;
                 if (locationFilter !== '') {
                     apiUrl += `&location=${encodeURIComponent(locationFilter)}`;
@@ -145,7 +232,6 @@
                 
                 loadingIndicator.classList.add('hidden');
 
-                // فحص الأخطاء المرسلة من السيرفر (مثل نفاذ الباقة)
                 if (!response.ok || data.error) {
                     const errorMsg = data.error || 'حدث خطأ غير معروف';
                     resultsContainer.innerHTML = `
@@ -213,9 +299,6 @@
                     </div>`;
             }
         }
-
-        // تشغيل بحث افتراضي عند فتح الصفحة
-        window.onload = searchJobs;
     </script>
 </body>
 </html>
