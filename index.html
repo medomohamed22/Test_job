@@ -135,7 +135,7 @@
 
             try {
                 // الاتصال بالخادم الخاص بنا
-                let apiUrl = `http://localhost:3000/api/jobs?q=${encodeURIComponent(query)}`;
+                let apiUrl = `/api/jobs?q=${encodeURIComponent(query)}`;
                 if (locationFilter !== '') {
                     apiUrl += `&location=${encodeURIComponent(locationFilter)}`;
                 }
