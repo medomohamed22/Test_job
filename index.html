@@ -462,7 +462,7 @@
 
             <div id="paymentDetails" style="margin-bottom: 1.5rem; font-size: 1rem; background: #fafafa; padding: 1rem; border-radius: 10px; border: 1px solid var(--border);"></div>
 
-            <button class="submit-btn" style="background-color: var(--secondary);" onclick="requestPiPayment()">دفع وحجز الرصيد عبر المحفظة</button>
+            <button class="submit-btn" style="background-color: var(--secondary);" id="paySubmitBtn" onclick="requestPiPayment()">دفع وحجز الرصيد عبر المحفظة</button>
         </div>
     </div>
 
@@ -525,8 +525,15 @@
         }
 
         // التعامل مع أي عملية معلقة في الشبكة
-        function onIncompletePaymentFound(payment) {
+        async function onIncompletePaymentFound(payment) {
             console.log("تم رصد معاملة تحتاج تصفية وتوثيق:", payment);
+            try {
+                await fetch('/api/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+                });
+            } catch (e) { console.error("Error completing pending payment:", e); }
         }
 
         // التحقق من حالة المستخدم وفتح نافذة الدفع والمراجعة
@@ -550,10 +557,14 @@
             openModal('paymentModal');
         }
 
-        // إطلاق وتنفيذ دالة الدفع الحقيقية وربط الـ API بمحفظتك مباشرة
+        // إطلاق وتنفيذ دالة الدفع الحقيقية وربط الـ API بمحفظتك عبر Vercel Serverless Functions
         function requestPiPayment() {
             const service = services.find(s => s.id === selectedServiceId);
+            const btn = document.getElementById('paySubmitBtn');
             
+            btn.disabled = true;
+            btn.innerText = "جاري الاتصال بالمحفظة...";
+
             Pi.createPayment({
                 amount: service.price,
                 memo: `شراء خدمة: ${service.title}`,
@@ -563,21 +574,54 @@
                     recipient_wallet: developerWalletAddress 
                 },
             }, {
-                onReadyForServerApproval: function(paymentId) {
-                    console.log("تم تجهيز الدفع والموافقة المبدئية، المعرف: ", paymentId);
-                    // هنا يتم توثيق المعاملة تلقائياً مع خوادم باي للموافقة (Approve)
+                // استدعاء دالة api/approve.js على Vercel
+                onReadyForServerApproval: async function(paymentId) {
+                    try {
+                        const response = await fetch('/api/approve', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId: paymentId })
+                        });
+                        return response.json();
+                    } catch (err) {
+                        console.error("Approval request failed", err);
+                        btn.disabled = false;
+                        btn.innerText = "دفع وحجز الرصيد عبر المحفظة";
+                    }
                 },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("نجح التوقيع البرمجي على شبكة البلوكشين. الهاش: ", txid);
-                    alert(`🎉 تهانينا! تمت معالجة المعاملة ونقل عملات 𝝅 ${service.price} إلى صندوق الضمان للمطور بنجاح.\n\nرقم المعاملة على الشبكة:\n${txid}`);
-                    closeModal('paymentModal');
+                // استدعاء دالة api/complete.js على Vercel
+                onReadyForServerCompletion: async function(paymentId, txid) {
+                    try {
+                        const response = await fetch('/api/complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                        });
+                        
+                        if (response.ok) {
+                            alert(`🎉 تهانينا! تمت معالجة المعاملة ونقل عملات 𝝅 ${service.price} إلى صندوق الضمان بنجاح.\n\nرقم المعاملة (TxID):\n${txid}`);
+                            closeModal('paymentModal');
+                        } else {
+                            throw new Error("فشل توثيق البلوكشين من الخادم المساعد");
+                        }
+                    } catch (err) {
+                        alert("حدث خطأ أثناء معالجة تأكيد المعاملة.");
+                        console.error(err);
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerText = "دفع وحجز الرصيد عبر المحفظة";
+                    }
                 },
                 onCancel: function(paymentId) {
                     alert("قمت بإلغاء العملية قبل التوقيع في محفظتك.");
+                    btn.disabled = false;
+                    btn.innerText = "دفع وحجز الرصيد عبر المحفظة";
                 },
                 onError: function(error, payment) {
-                    alert("عذراً، فشلت المعاملة. تأكد من توفر رصيد كافي بداخل محفظة Pi الخاصة بك.");
+                    alert("عذراً، فشلت المعاملة. تأكد من توفر رصيد كافي داخل محفظتك.");
                     console.error(error);
+                    btn.disabled = false;
+                    btn.innerText = "دفع وحجز الرصيد عبر المحفظة";
                 }
             });
         }
