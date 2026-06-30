@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const PI_API_KEY = "YOUR_PI_API_KEY_HERE"; 
+const PI_API_KEY = "gnpdg0e5gxou6yojiegw2o3yzuqbctomll32amllpxp7x0wuq4apjcqrzqkk2wqa"; 
 
 module.exports = async (req, res) => {
     // تفعيل إعدادات CORS
