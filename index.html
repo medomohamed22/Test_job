@@ -2,303 +2,568 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>محرك بحث الوظائف | شغلني</title>
-    <!-- Tailwind CSS للتصميم -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مستقلين | منصة الخدمات وضمان حقوق Pi</title>
+    <!-- خطوط جوجل لجمالية التصميم -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- تضمين مكتبة Pi Network SDK الرسمية للـ Pi Browser -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        // تهيئة الـ SDK الخاص بـ Pi Network
+        Pi.init({ version: "2.0" });
+    </script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
-        body { 
-            font-family: 'Cairo', sans-serif; 
-            background-color: #f8fafc;
+        /* --- المتغيرات والتصميم العام --- */
+        :root {
+            --primary: #e6b800; /* لون باي نيتورك الذهبي المائل للأصفر */
+            --primary-hover: #ccaa00;
+            --purple-pi: #621d80; /* لون باي نيتورك البنفسجي الرسمي */
+            --secondary: #10b981;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
-        .line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;  
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        /* --- الهيدر (شريط التنقل) --- */
+        header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--purple-pi);
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn {
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .add-service-btn {
+            background-color: var(--purple-pi);
+            color: white;
+        }
+
+        .add-service-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .pi-login-btn {
+            background-color: var(--primary);
+            color: var(--dark);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .pi-login-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .user-logged {
+            background: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            color: var(--purple-pi);
+            border: 1px solid var(--border);
+            display: none; /* يظهر فقط بعد تسجيل الدخول */
+        }
+
+        /* --- العرض الرئيسي (Hero Section) --- */
+        .hero {
+            background: linear-gradient(135deg, #4a1564 0%, #1e072a 100%);
+            color: white;
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            color: #cbd5e1;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .badge-guarantee {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(230, 184, 0, 0.2);
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border: 1px solid var(--primary);
+        }
+
+        /* --- قسم الخدمات --- */
+        .main-container {
+            max-width: 1200px;
+            margin: 3rem auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            right: 0;
+            width: 50px;
+            height: 4px;
+            background-color: var(--primary);
+            border-radius: 2px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border);
             overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
-        select {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: left 0.5rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
-            padding-left: 2.5rem;
-            appearance: none;
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .card-tag {
+            background: #f3e8ff;
+            color: var(--purple-pi);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-bottom: 0.8rem;
+            font-weight: bold;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .card-author {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+        }
+
+        .price {
+            font-weight: 700;
+            color: var(--secondary);
+            font-size: 1.2rem;
+        }
+
+        .buy-btn {
+            background: var(--purple-pi);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .buy-btn:hover {
+            background: var(--dark);
+        }
+
+        /* --- النوافذ المنبثقة (Modals) --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+            position: relative;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--gray);
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--purple-pi);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .guarantee-box {
+            background: #fffbeb;
+            border: 1px dashed var(--primary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: #78350f;
+        }
+
+        /* --- الجوال --- */
+        @media (max-width: 768px) {
+            .nav-container { padding: 1rem; }
+            .hero h1 { font-size: 1.8rem; }
+            .main-container { margin: 1.5rem auto; padding: 0 1rem; }
+            .services-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
-<body class="text-gray-800">
+<body>
 
-    <!-- قسم الهيدر والنبذة التعريفية -->
-    <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-xl pb-24 pt-16 rounded-b-[3rem] relative">
-        <div class="container mx-auto px-4 text-center">
-            <h1 class="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">انطلق نحو وظيفة أحلامك 🚀</h1>
-            <p class="max-w-2xl mx-auto text-blue-100 text-lg sm:text-xl leading-relaxed mb-8">
-                منصتك الذكية للبحث عن الوظائف. نجمع لك آلاف الفرص من مختلف الشركات حول العالم في مكان واحد. 
-                سواء كنت تبحث عن عمل من المنزل أو في مقر الشركة، خياراتنا تناسب طموحك.
-            </p>
-
-            <!-- قسم تسجيل الدخول الجديد Pi OIDC -->
-            <div id="auth-section" class="max-w-xs mx-auto mb-4">
-                <button onclick="redirectToPiLogin()" id="pi-login-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition duration-300 flex items-center justify-center gap-2 mx-auto">
-                    <span class="text-xl font-mono">π</span> تسجيل الدخول بواسطة Pi Network
-                </button>
-                <div id="user-profile" class="hidden bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 flex items-center justify-between gap-4">
-                    <p class="text-sm">مرحباً بك، <span id="pi-username" class="font-bold text-yellow-400"></span> 👋</p>
-                    <button onclick="logoutPi()" class="text-xs bg-red-500/80 hover:bg-red-600 text-white px-2 py-1 rounded-lg transition">خروج</button>
-                </div>
+    <!-- الهيدر -->
+    <header>
+        <div class="nav-container">
+            <a href="#" class="logo">مستقلـ<span>باي</span></a>
+            <div class="nav-actions">
+                <button class="btn add-service-btn" onclick="openModal('addServiceModal')">أضف خدمة</button>
+                <!-- زر تسجيل دخول Pi Network -->
+                <button class="btn pi-login-btn" id="piLoginBtn" onclick="loginWithPi()">𝝅 تسجيل دخول</button>
+                <!-- اسم المستخدم بعد تسجيل الدخول -->
+                <div class="user-logged" id="userLogged"></div>
             </div>
         </div>
     </header>
 
-    <!-- لوحة البحث والفلاتر -->
-    <section class="container mx-auto px-4 -mt-16 relative z-10">
-        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                
-                <!-- مربع البحث -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-bold text-gray-700 mb-2">المسمى الوظيفي</label>
-                    <input type="text" id="searchInput" placeholder="مثال: Frontend Developer, محاسب..." 
-                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                        onkeypress="handleKeyPress(event)">
-                </div>
-
-                <!-- فلتر الدولة -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">موقع العمل (البلد)</label>
-                    <select id="locationFilter" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                        <option value="">كل الدول (عالمي)</option>
-                        <option value="Egypt">مصر</option>
-                        <option value="Saudi Arabia">السعودية</option>
-                        <option value="United Arab Emirates">الإمارات</option>
-                        <option value="Qatar">قطر</option>
-                        <option value="Kuwait">الكويت</option>
-                        <option value="United States">الولايات المتحدة</option>
-                        <option value="United Kingdom">المملكة المتحدة</option>
-                    </select>
-                </div>
-
-                <!-- فلتر نوع العمل -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">نوع العمل</label>
-                    <select id="workTypeFilter" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                        <option value="">الكل (عن بعد / حضوري)</option>
-                        <option value="remote">عمل عن بعد (Remote)</option>
-                        <option value="onsite">في مقر الشركة (On-site)</option>
-                    </select>
-                </div>
-
-                <!-- زر البحث -->
-                <div class="md:col-span-4 mt-2">
-                    <button onclick="searchJobs()" 
-                        class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold text-lg py-3 rounded-lg shadow-md transition duration-300 transform hover:-translate-y-0.5">
-                        ابحث الآن 🔍
-                    </button>
-                </div>
-                
-            </div>
-        </div>
+    <!-- البانر الترحيبي -->
+    <section class="hero">
+        <div class="badge-guarantee">🛡️ مدعوم بـ Pi Network SDK الرسمي</div>
+        <br><br>
+        <h1>سوق خدمات فري لانس بعملة 𝝅</h1>
+        <p>قم بشراء وبيع الخدمات المصغرة بأمان. يتم حجز عملات Pi في الضمان ولا يتم تحريرها للبائع إلا بعد تأكيدك للمشروع.</p>
     </section>
 
-    <!-- قسم عرض النتائج -->
-    <main class="container mx-auto px-4 py-12">
-        <!-- مؤشر التحميل -->
-        <div id="loading" class="text-center text-lg text-blue-600 font-bold hidden my-10 flex flex-col items-center justify-center">
-            <svg class="animate-spin h-12 w-12 mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>جاري البحث في آلاف الوظائف...</span>
-        </div>
-        
-        <!-- شبكة الوظائف -->
-        <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <!-- المعرض -->
+    <main class="main-container">
+        <h2 class="section-title">الخدمات المتوفرة</h2>
+        <div class="services-grid" id="servicesGrid"></div>
     </main>
 
-    <!-- الجافاسكربت الخاص بالواجهة والـ OIDC -->
+    <!-- مودال: إضافة خدمة -->
+    <div class="modal" id="addServiceModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('addServiceModal')">&times;</button>
+            <h3 style="margin-bottom: 1.5rem;">إضافة خدمة جديدة</h3>
+            <form id="addServiceForm">
+                <div class="form-group">
+                    <label>عنوان الخدمة</label>
+                    <input type="text" id="srvTitle" placeholder="مثال: تعريب وتطوير سكربتات" required>
+                </div>
+                <div class="form-group">
+                    <label>اسم مقدم الخدمة</label>
+                    <input type="text" id="srvAuthor" placeholder="اسمك الثنائي" required>
+                </div>
+                <div class="form-group">
+                    <label>التصنيف</label>
+                    <input type="text" id="srvTag" placeholder="برمجة، تصميم..." required>
+                </div>
+                <div class="form-group">
+                    <label>السعر بعملة (𝝅 Pi)</label>
+                    <input type="number" id="srvPrice" min="1" placeholder="10" required>
+                </div>
+                <button type="submit" class="submit-btn">نشر الخدمة</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مودال: بوابة دفع Pi وضمان الحقوق -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('paymentModal')">&times;</button>
+            <h3 style="margin-bottom: 1rem; color: var(--purple-pi);">🛡️ تفاصيل حجز عملات 𝝅</h3>
+            
+            <div class="guarantee-box">
+                <strong>نظام الـ Escrow الآمن:</strong> عند الضغط على تأكيد، سيتيح لك الـ SDK توقيع المعاملة من محفظتك. ستبقى العملات مجمدة لدى المنصة لحين تسليم الخدمة.
+            </div>
+
+            <div id="paymentDetails" style="margin-bottom: 1.5rem;"></div>
+
+            <button class="submit-btn" style="background-color: var(--secondary);" onclick="requestPiPayment()">تأكيد ودفع عبر محفظة Pi</button>
+        </div>
+    </div>
+
     <script>
-        // إعدادات تطبيق Pi الخاصة بك (استبدل القيم بما يناسب حسابك في Develop.pi لاحقاً)
-        const PI_CLIENT_ID = 'DE9gV41Op9HQV9I8kLDKibDLTJp41g6wmHqesVMpylc'; 
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        // المتغير العالمي لحفظ بيانات المستخدم المسجل عبر باي
+        let currentUser = null;
+        let selectedServiceId = null;
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                searchJobs();
+        // قاعدة بيانات وهمية مبدئية
+        let services = [
+            { id: 1, title: "تطوير تطبيق متوافق مع Pi Browser", author: "إياد المبرمج", tag: "تطوير ويب", price: 25 },
+            { id: 2, title: "تصميم واجهات مستخدم احترافية لمتجرك", author: "فاطمة ديزاين", tag: "تصميم", price: 15 },
+            { id: 3, title: "صياغة وتدقيق شروط الاستخدام للمواقع والمنصات", author: "مستشار قانوني", tag: "خدمات استشارية", price: 10 }
+        ];
+
+        // دالة عرض الخدمات
+        function renderServices() {
+            const grid = document.getElementById('servicesGrid');
+            grid.innerHTML = '';
+            
+            services.forEach(service => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-body">
+                        <span class="card-tag">${service.tag}</span>
+                        <h3 class="card-title">${service.title}</h3>
+                        <div class="card-author">👤 البائع: ${service.author}</div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="price">𝝅 ${service.price}</div>
+                        <button class="buy-btn" onclick="openPaymentModal(${service.id})">شراء بواسطة 𝝅</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // تسجيل الدخول الرسمي باستخدام Pi SDK
+        async function loginWithPi() {
+            try {
+                const scopes = ['username', 'payments'];
+                // استدعاء مصادقة Pi
+                const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                
+                currentUser = auth.user;
+                
+                // تحديث الواجهة لإظهار اسم مستخدم Pi
+                document.getElementById('piLoginBtn').style.display = 'none';
+                const userBox = document.getElementById('userLogged');
+                userBox.innerText = `𝝅 @${currentUser.username}`;
+                userBox.style.display = 'block';
+                
+                alert(`أهلاً بك @${currentUser.username}، تم التحقق من حسابك بنجاح!`);
+            } catch (error) {
+                console.error(error);
+                alert("فشل الاتصال بـ Pi Network. تأكد من فتح الموقع داخل Pi Browser.");
             }
         }
 
-        // 1. توجيه المستخدم لصفحة تسجيل دخول Pi الآمنة خارج المتصفح الخاص بـ Pi
-        function redirectToPiLogin() {
-            const state = Math.random().toString(36).substring(2); 
-            localStorage.setItem('pi_auth_state', state);
-
-            const piLoginUrl = `https://login.minepi.com/oauth2/authorize` +
-                `?response_type=code` +
-                `&client_id=${encodeURIComponent(PI_CLIENT_ID)}` +
-                `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-                `&scope=openid%20username` +
-                `&state=${state}`;
-
-            window.location.href = piLoginUrl;
+        // التعامل مع المدفوعات غير المكتملة (مطلوبة من قبل الكود المصدري لباي)
+        function onIncompletePaymentFound(payment) {
+            console.log("هناك معاملة معلقة بحاجة للتوثيق:", payment);
+            // في البيئة الحقيقية، ترسل الـ payment.identifier إلى السيرفر الخاص بك لتأكيدها
         }
 
-        // 2. تحديث واجهة المستخدم وعرض الاسم
-        function showUserProfile(user) {
-            document.getElementById('pi-login-btn').classList.add('hidden');
-            const profileDiv = document.getElementById('user-profile');
-            profileDiv.classList.remove('hidden');
-            document.getElementById('pi-username').innerText = user.username;
-            localStorage.setItem('pi_user', JSON.stringify(user));
-        }
-
-        // 3. تسجيل الخروج وحذف البيانات المسجلة
-        function logoutPi() {
-            localStorage.removeItem('pi_user');
-            document.getElementById('user-profile').classList.add('hidden');
-            document.getElementById('pi-login-btn').classList.remove('hidden');
-        }
-
-        // فحص حالة العودة من Pi أو الجلسة السابقة عند تحميل الصفحة
-        window.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const state = urlParams.get('state');
-            const savedState = localStorage.getItem('pi_auth_state');
-
-            // إذا عاد المستخدم محملاً بكود توثيق Pi الصالح
-            if (code && state === savedState) {
-                localStorage.removeItem('pi_auth_state');
-                window.history.replaceState({}, document.title, window.location.pathname); // تنظيف الرابط
-
-                try {
-                    // إرسال الكود للسيرفر للحصول على التوكن والـ Profile
-                    const response = await fetch('/api/pi-login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code: code, redirect_uri: REDIRECT_URI })
-                    });
-                    
-                    const userData = await response.json();
-                    if (response.ok && userData.username) {
-                        showUserProfile(userData);
-                    } else {
-                        alert('فشل التحقق من الحساب: ' + (userData.error || 'خطأ غير معروف'));
-                    }
-                } catch (error) {
-                    console.error('Error during API verification:', error);
-                }
-            } else {
-                // محاولة استعادة الجلسة المخزنة محلياً إن وجدت
-                const savedUser = localStorage.getItem('pi_user');
-                if (savedUser) {
-                    showUserProfile(JSON.parse(savedUser));
-                }
+        // فتح بوابة الدفع والتحقق من التسجيل أولاً
+        function openPaymentModal(id) {
+            if (!currentUser) {
+                alert("⚠️ فضلاً، يجب عليك تسجيل الدخول بحساب Pi أولاً بالضغط على الزر في الأعلى!");
+                loginWithPi();
+                return;
             }
+            
+            selectedServiceId = id;
+            const service = services.find(s => s.id === id);
+            const detailsDiv = document.getElementById('paymentDetails');
+            
+            detailsDiv.innerHTML = `
+                <p><strong>اسم الخدمة:</strong> ${service.title}</p>
+                <p><strong>مقدم الخدمة (البائع):</strong> ${service.author}</p>
+                <p style="font-size: 1.2rem; margin-top: 0.5rem;"><strong>القيمة المطلوب تجميدها:</strong> <span style="color:var(--secondary); font-weight:bold;">𝝅 ${service.price}</span></p>
+            `;
+            openModal('paymentModal');
+        }
 
-            // تشغيل البحث الافتراضي للموقع تلقائياً
-            searchJobs();
+        // استدعاء نافذة دفع Pi الحقيقية عبر الـ SDK
+        function requestPiPayment() {
+            const service = services.find(s => s.id === selectedServiceId);
+            
+            Pi.createPayment({
+                amount: service.price,
+                memo: `حجز أموال لخدمة: ${service.title}`,
+                metadata: { serviceId: service.id, buyer: currentUser.username },
+            }, {
+                onReadyForServerApproval: function(paymentId) {
+                    console.log("المعاملة مجهزة للموافقة من السيرفر. ID:", paymentId);
+                    // هنا يتم إرسال معرف المعاملة للسيرفر الخلفي لمطابقتها مع الـ API Key الخاص بك
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    console.log("تم التوقيع على البلوكشين بنجاح. TxID:", txid);
+                    alert(`🎉 ممتاز!\nتمت معالجة الدفع عبر شبكة Pi وحجز الـ 𝝅 بنجاح.\nمعرف المعاملة: ${txid}`);
+                    closeModal('paymentModal');
+                },
+                onCancel: function(paymentId) {
+                    alert("تم إلغاء عملية الدفع من قبل المستخدم.");
+                },
+                onError: function(error, payment) {
+                    alert("حدث خطأ أثناء معالجة الدفع في محفظة باي.");
+                    console.error(error);
+                }
+            });
+        }
+
+        // النوافذ الإضافية
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // إضافة خدمة جديدة للمصفوفة
+        document.getElementById('addServiceForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const title = document.getElementById('srvTitle').value;
+            const author = document.getElementById('srvAuthor').value;
+            const tag = document.getElementById('srvTag').value;
+            const price = document.getElementById('srvPrice').value;
+
+            services.unshift({
+                id: services.length + 1,
+                title: title,
+                author: author,
+                tag: tag,
+                price: parseFloat(price)
+            });
+
+            renderServices();
+            closeModal('addServiceModal');
+            document.getElementById('addServiceForm').reset();
+            alert('🚀 تم نشر الخدمة بنجاح والتسعير بعملة باي!');
         });
 
-        // دالة جلب الوظائف (كما هي في ملفك الأصلي دون تغيير)
-        async function searchJobs() {
-            const searchInput = document.getElementById('searchInput').value;
-            const locationFilter = document.getElementById('locationFilter').value;
-            const workTypeFilter = document.getElementById('workTypeFilter').value;
-            
-            let query = searchInput.trim() !== '' ? searchInput : 'Developer';
-
-            if (workTypeFilter === 'remote') {
-                query += ' remote';
-            } else if (workTypeFilter === 'onsite') {
-                query += ' onsite';
-            }
-
-            const resultsContainer = document.getElementById('results');
-            const loadingIndicator = document.getElementById('loading');
-
-            resultsContainer.innerHTML = '';
-            loadingIndicator.classList.remove('hidden');
-
-            try {
-                let apiUrl = `/api/jobs?q=${encodeURIComponent(query)}`;
-                if (locationFilter !== '') {
-                    apiUrl += `&location=${encodeURIComponent(locationFilter)}`;
-                }
-
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                
-                loadingIndicator.classList.add('hidden');
-
-                if (!response.ok || data.error) {
-                    const errorMsg = data.error || 'حدث خطأ غير معروف';
-                    resultsContainer.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-red-100 shadow-sm">
-                        <span class="text-4xl mb-4 block">⚠️</span>
-                        <p class="text-red-600 font-bold text-xl mb-2">رسالة من الخادم: ${errorMsg}</p>
-                        <p class="text-gray-500">إذا كانت الرسالة تتعلق بـ Quota فهذا يعني أن رصيد بحثك المجاني قد انتهى.</p>
-                    </div>`;
-                    return;
-                }
-
-                const jobs = data.jobs || [];
-
-                if (jobs.length > 0) {
-                    jobs.forEach(job => {
-                        const scheduleType = job.detected_extensions?.schedule_type || 'غير محدد';
-                        const salary = job.detected_extensions?.salary || 'الراتب غير معلن';
-                        const postedAt = job.detected_extensions?.posted_at || 'مؤخراً';
-
-                        const jobCard = `
-                            <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden border border-gray-100 transform hover:-translate-y-1">
-                                <div class="p-6 flex-grow">
-                                    <h2 class="text-xl font-bold text-gray-900 mb-2" dir="ltr">${job.title}</h2>
-                                    <div class="text-indigo-600 font-bold mb-2" dir="ltr">🏢 ${job.company_name}</div>
-                                    <div class="text-gray-500 text-sm mb-4 flex items-center flex-wrap gap-2" dir="ltr">
-                                        <span>📍 ${job.location}</span> 
-                                        <span class="text-gray-300">•</span> 
-                                        <span>⏱️ ${postedAt}</span>
-                                    </div>
-                                    
-                                    <div class="flex flex-wrap gap-2 mb-4" dir="ltr">
-                                        <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100">
-                                            ⏳ ${scheduleType}
-                                        </span>
-                                        <span class="bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-100">
-                                            💵 ${salary}
-                                        </span>
-                                    </div>
-                                    
-                                    <p class="text-gray-600 text-sm line-clamp-3 leading-relaxed" dir="ltr">
-                                        ${job.description}
-                                    </p>
-                                </div>
-                                <div class="p-4 bg-gray-50 border-t border-gray-100">
-                                    <a href="${job.share_link}" target="_blank" 
-                                        class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition duration-200">
-                                        التقديم للوظيفة
-                                    </a>
-                                </div>
-                            </div>
-                        `;
-                        resultsContainer.innerHTML += jobCard;
-                    });
-                } else {
-                    resultsContainer.innerHTML = '<div class="col-span-full text-center text-gray-600 text-xl py-12 bg-white rounded-2xl border border-gray-100">لم يتم العثور على وظائف مطابقة للبحث. جرب تغيير الدولة أو المسمى الوظيفي.</div>';
-                }
-            } catch (error) {
-                console.error("Error:", error);
-                loadingIndicator.classList.add('hidden');
-                resultsContainer.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-red-100 shadow-sm">
-                        <span class="text-4xl mb-4 block">🔌</span>
-                        <p class="text-red-600 font-bold text-xl mb-2">لا يمكن الاتصال بالخادم!</p>
-                        <p class="text-gray-500">تأكد من تشغيل ملف <b>server.js</b> في موجه الأوامر (Terminal) باستخدام الأمر: <code>node server.js</code></p>
-                    </div>`;
-            }
-        }
+        // عند التحميل
+        window.onload = renderServices;
     </script>
 </body>
 </html>
