@@ -125,11 +125,11 @@
 
 <!-- كود JavaScript الخاص بالاتصال بمنصة Pi -->
 <script>
-    // ⚠️ هااااام جداً: ضع Client ID الخاص بتطبيقك من بوابة مطوري Pi
+    // معرف العميل الخاص بك
     const CLIENT_ID = 'DE9gV41Op9HQV9I8kLDKibDLTJp41g6wmHqesVMpylc'; 
     
-    // يقوم بجلب رابط صفحتك الحالي لكي يعود إليه النظام بعد تسجيل الدخول
-    const REDIRECT_URI = window.location.origin + window.location.pathname;
+    // التعديل هنا: قمنا بتثبيت الرابط بدلاً من جعله ديناميكياً لتجنب الأخطاء
+    const REDIRECT_URI = 'https://test-job-lilac.vercel.app/';
 
     // دالة لتوليد رمز عشوائي للحماية (Security State)
     function generateState() {
@@ -138,16 +138,11 @@
 
     // 1. الدالة التي تعمل عند النقر على زر تسجيل الدخول
     function startPiLogin() {
-        if(CLIENT_ID === 'ضع_معرف_العميل_هنا') {
-            alert('يرجى وضع معرف العميل (Client ID) الخاص بك في الكود أولاً!');
-            return;
-        }
-
         // إنشاء وتخزين رمز أمان للتحقق منه لاحقاً
         const state = generateState();
         sessionStorage.setItem('pi_auth_state', state);
 
-        // إنشاء رابط التوجيه إلى سيرفرات Pi (حسب المستندات الرسمية)
+        // إنشاء رابط التوجيه إلى سيرفرات Pi
         const authUrl = new URL('https://accounts.pinet.com/oauth/authorize');
         authUrl.searchParams.append('response_type', 'token');
         authUrl.searchParams.append('client_id', CLIENT_ID);
@@ -177,7 +172,7 @@
                 return;
             }
 
-            // تنظيف الرابط لإخفاء الـ Access Token لأسباب أمنية ولجمالية الرابط
+            // تنظيف الرابط لإخفاء الـ Access Token لأسباب أمنية
             window.history.replaceState(null, null, window.location.pathname);
 
             // تعديل واجهة المستخدم
