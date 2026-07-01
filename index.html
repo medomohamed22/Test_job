@@ -1,376 +1,222 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Deal Way</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول بواسطة Pi (أي متصفح)</title>
+    
+    <!-- تنسيقات التصميم CSS -->
+    <style>
+        :root {
+            --pi-purple: #5b2a86;
+            --pi-gold: #f3a830;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script defer src="https://sdk.minepi.com/pi-sdk.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
 
-<style>
-:root{
-  --primary:#6366F1;--primary-dark:#4F46E5;--primary-light:#818CF8;
-  --accent:#F59E0B;--accent-light:#FBBF24;--bg-body:#F8FAFC;
-  --surface:#fff;--text-main:#0F172A;--text-muted:#64748B;--text-light:#94A3B8;
-  --danger:#EF4444;--success:#10B981;--warning:#F59E0B;--border:#E2E8F0;
-  --shadow-sm:0 1px 2px rgb(0 0 0 / .05);
-  --shadow:0 4px 6px -1px rgb(0 0 0 / .1),0 2px 4px -2px rgb(0 0 0 / .1);
-  --shadow-lg:0 10px 15px -3px rgb(0 0 0 / .1),0 4px 6px -4px rgb(0 0 0 / .1);
-  --shadow-xl:0 20px 25px -5px rgb(0 0 0 / .1),0 8px 10px -6px rgb(0 0 0 / .1);
-  --nav-height:80px;--radius:12px;--radius-lg:16px;--radius-xl:24px;--radius-full:9999px;
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
-html{scroll-behavior:smooth} body{font-family:'Tajawal',sans-serif;background:linear-gradient(135deg,#F8FAFC,#F1F5F9);color:var(--text-main);padding-bottom:calc(var(--nav-height) + 20px);overflow-x:hidden;line-height:1.6}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes pulse-glow{0%,100%{box-shadow:0 0 5px rgba(99,102,241,.4)}50%{box-shadow:0 0 20px rgba(99,102,241,.6),0 0 40px rgba(99,102,241,.3)}}
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes slideInRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
-@keyframes slideInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeScale{from{opacity:0;transform:scale(.95) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}} @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-.container{width:min(100%,900px);margin:0 auto;padding:16px}.hidden{display:none!important}
-.btn{border:none;cursor:pointer;border-radius:var(--radius-lg);padding:14px 24px;font-weight:700;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:.3s;font-size:14px;position:relative;overflow:hidden}
-.btn:active{transform:scale(.96)}.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;box-shadow:0 4px 15px rgba(99,102,241,.4)}.btn-primary:hover,.btn-gold:hover,.btn-ghost:hover{transform:translateY(-2px)}
-.btn-gold{background:linear-gradient(135deg,var(--accent),#D97706);color:#fff;box-shadow:0 4px 15px rgba(245,158,11,.4)}.btn-ghost{background:rgba(255,255,255,.8);color:var(--text-muted);border:1px solid var(--border);backdrop-filter:blur(10px)}.btn-danger{background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff}.btn-disabled{background:#E2E8F0;color:#94A3B8;cursor:not-allowed;pointer-events:none}
-.header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(226,232,240,.6);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;height:70px;box-shadow:0 4px 20px rgba(0,0,0,.05)}
-.brand{font-size:26px;font-weight:900;display:flex;align-items:center;gap:0;letter-spacing:-.5px}.header-actions{display:flex;align-items:center;gap:12px}.lang-btn{width:36px;height:36px;border-radius:50%;background:white;border:1px solid var(--border);color:var(--primary);font-weight:800;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(0,0,0,.05)}
-.header-user{display:flex;align-items:center;gap:10px;padding:6px 16px;background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(245,158,11,.1));border-radius:var(--radius-full);border:1px solid rgba(99,102,241,.2);animation:slideInRight .5s}.status-dot{width:10px;height:10px;background:linear-gradient(135deg,var(--success),#34D399);border-radius:50%;box-shadow:0 0 0 3px rgba(16,185,129,.2);animation:pulse-glow 2s infinite}.header-name{font-size:14px;font-weight:800}
-.search-container{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;animation:slideInUp .5s}.search-input-wrap{flex:2;min-width:200px;position:relative}.search-input{width:100%;padding:14px 44px 14px 16px;border:2px solid var(--border);border-radius:var(--radius-xl);font-family:inherit;font-size:15px;outline:none;background:white;transition:.3s;box-shadow:var(--shadow-sm)}.search-input:focus,.filter-select:focus,.input-box:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(99,102,241,.1)}
-.search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--text-light)}.filter-select{flex:1;padding:0 16px;border:2px solid var(--border);border-radius:var(--radius-xl);background:white;font-family:inherit;font-size:14px;outline:none;min-width:140px;height:50px;cursor:pointer;transition:.3s;box-shadow:var(--shadow-sm)}
-.advanced-panel{background:white;border:1px solid var(--border);border-radius:var(--radius-xl);box-shadow:var(--shadow-sm);padding:14px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-height);background:rgba(255,255,255,.95);border-top:1px solid rgba(226,232,240,.6);display:flex;justify-content:space-around;align-items:center;z-index:1000;padding-bottom:env(safe-area-inset-bottom,10px);box-shadow:0 -10px 40px rgba(0,0,0,.08);backdrop-filter:blur(20px)}
-.nav-item{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-muted);font-size:12px;font-weight:700;background:none;border:none;cursor:pointer;padding:12px;width:80px;position:relative;transition:.3s;border-radius:var(--radius-lg)}.nav-item i{font-size:20px}.nav-item.active{color:var(--primary);background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(245,158,11,.1))}.nav-badge{position:absolute;top:8px;right:20px;background:var(--danger);color:white;min-width:20px;height:20px;border-radius:999px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid white}
-.view-section{animation:fadeScale .5s ease}.section-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:0 4px}.section-header h3{font-size:20px;font-weight:800}.section-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:var(--radius);display:grid;place-items:center;color:white;font-size:18px;box-shadow:var(--shadow)}
-.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}.card{background:white;border-radius:var(--radius-xl);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:var(--shadow-sm);transition:.35s;cursor:pointer}.card:hover{transform:translateY(-8px) scale(1.02);box-shadow:var(--shadow-xl);border-color:rgba(99,102,241,.2)}
-.card-img-wrap{position:relative;width:100%;aspect-ratio:1/1;background:linear-gradient(135deg,#F1F5F9,#E2E8F0);overflow:hidden}.card-img{width:100%;height:100%;object-fit:cover;transition:.5s}.card:hover .card-img{transform:scale(1.1)}.card-body{padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}.card-title{font-size:14px;line-height:1.4;font-weight:800;height:40px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.price-pill{background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#92400E;border:1px solid #FCD34D;padding:6px 16px;border-radius:999px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:6px}.card-desc{font-size:12px;color:var(--text-muted);height:36px;overflow:hidden}.promo-badge{position:absolute;top:8px;right:8px;z-index:10;background:linear-gradient(135deg,var(--accent),#D97706);color:white;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:800;box-shadow:0 2px 8px rgba(245,158,11,.3);display:flex;gap:4px}.verified-badge{background:#DCFCE7;color:#166534;border:1px solid #86EFAC;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800}.sold-badge{position:absolute;inset:0;background:rgba(15,23,42,.55);display:grid;place-items:center;color:white;font-weight:900;font-size:22px;z-index:11}.fav-btn,.share-mini{position:absolute;top:8px;left:8px;z-index:12;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.9);display:grid;place-items:center;color:var(--danger);box-shadow:var(--shadow);cursor:pointer}.share-mini{top:48px;color:var(--primary)}
-.location-tag{position:absolute;bottom:8px;left:8px;z-index:10;background:rgba(15,23,42,.85);color:white;padding:4px 8px;border-radius:6px;font-size:9px;font-weight:600;display:flex;gap:4px;max-width:85%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card.promoted{border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(245,158,11,.1),var(--shadow-lg)}
-.categories-wrapper{position:sticky;top:70px;z-index:40;background:linear-gradient(to bottom,var(--bg-body),rgba(248,250,252,.95));padding:16px 0;margin-bottom:20px;backdrop-filter:blur(10px)}.categories-scroll{display:flex;gap:12px;overflow-x:auto;padding:4px;scrollbar-width:none}.cat-chip{background:white;border:2px solid var(--border);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;color:var(--text-muted);white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.3s;box-shadow:var(--shadow-sm)}.cat-chip.active{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border-color:var(--primary);box-shadow:0 4px 15px rgba(99,102,241,.4);transform:translateY(-2px)}
-.slider-container{width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#F1F5F9,#E2E8F0);border-radius:var(--radius-xl);overflow:hidden;margin-bottom:20px;border:1px solid var(--border);position:relative;box-shadow:var(--shadow-lg)}.slider-wrapper{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;scroll-behavior:smooth}.slide{flex:0 0 100%;scroll-snap-align:center;width:100%;height:100%;display:flex;align-items:center;justify-content:center}.slide-img{width:100%;height:100%;object-fit:contain;padding:20px}.slider-dots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(0,0,0,.3);padding:8px 16px;border-radius:999px}.dot{width:10px;height:10px;background:rgba(255,255,255,.4);border-radius:50%;cursor:pointer}.dot.active{background:white;transform:scale(1.3)}
-.seller-card{background:white;border:1px solid var(--border);padding:20px;border-radius:var(--radius-xl);margin-top:24px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow)}.seller-avatar{width:60px;height:60px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:50%;display:grid;place-items:center;font-size:24px;color:white;font-weight:800;box-shadow:var(--shadow);border:3px solid white;outline:2px solid var(--primary-light)}.seller-info{flex:1}.seller-name{font-weight:800;font-size:16px;margin-bottom:6px}.seller-stats{font-size:13px;color:var(--text-muted);display:flex;flex-direction:column;gap:4px}
-.modal{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px)}.sheet{background:white;width:100%;max-width:600px;border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:28px;max-height:90vh;overflow-y:auto;animation:slideUp .4s;display:flex;flex-direction:column;gap:20px;box-shadow:0 -20px 60px rgba(0,0,0,.3)}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:16px;border-bottom:2px solid var(--border)}.modal-title{font-size:22px;font-weight:800;display:flex;align-items:center;gap:12px}.modal-title i{color:var(--primary)}.close-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--bg-body);color:var(--text-muted);cursor:pointer;display:grid;place-items:center;font-size:20px}
-.form-group{display:flex;flex-direction:column;gap:8px}.form-label{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}.form-label i{color:var(--primary);font-size:14px}.input-box{width:100%;padding:16px;border:2px solid var(--border);border-radius:var(--radius-lg);font-family:inherit;font-size:15px;outline:none;background:white;transition:.3s}textarea.input-box{resize:none;height:100px;line-height:1.6}.file-upload-wrapper{border:3px dashed var(--border);border-radius:var(--radius-xl);padding:40px 20px;text-align:center;cursor:pointer;background:linear-gradient(135deg,#F8FAFC,#F1F5F9);transition:.3s}.file-upload-content{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--text-muted)}.file-upload-icon{font-size:48px;color:var(--primary);animation:float 3s infinite}.previews-container{display:flex;gap:12px;margin-bottom:16px;overflow-x:auto;padding:8px 4px}.preview-box{width:80px;height:80px;border-radius:var(--radius);overflow:hidden;position:relative;flex-shrink:0;border:2px solid var(--border);box-shadow:var(--shadow)}.preview-box img{width:100%;height:100%;object-fit:cover}.preview-main{outline:3px solid var(--accent)}.preview-remove,.preview-set-main{position:absolute;top:4px;right:4px;background:var(--danger);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:2px solid white}.preview-set-main{right:auto;left:4px;background:var(--accent)}
-.toast-container{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;flex-direction:column;gap:12px;pointer-events:none;width:90%;max-width:400px}.toast{background:white;padding:16px 24px;border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);border:1px solid var(--border);display:flex;align-items:center;gap:16px;animation:slideInUp .3s;pointer-events:auto}.toast.success{border-right:4px solid var(--success)}.toast.error{border-right:4px solid var(--danger)}.toast.warning{border-right:4px solid var(--warning)}.toast-msg{font-size:14px;font-weight:700;flex:1}
-.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}.empty-state-icon{font-size:64px;margin-bottom:20px;color:var(--border);animation:float 3s infinite}.chat-area{flex:1;overflow-y:auto;background:#F8FAFC;padding:16px;border-radius:var(--radius-lg);margin-bottom:16px;min-height:300px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--border)}.bubble{max-width:80%;padding:14px 18px;border-radius:20px;font-size:14px;line-height:1.5;animation:slideInUp .3s;box-shadow:var(--shadow-sm)}.bubble.me{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;align-self:flex-end;border-bottom-right-radius:4px}.bubble.other{background:white;border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}.inbox-item{background:white;padding:16px;margin-bottom:12px;border-radius:var(--radius-xl);border:1px solid var(--border);display:flex;align-items:center;gap:16px;cursor:pointer;transition:.3s;box-shadow:var(--shadow-sm)}.inbox-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;display:grid;place-items:center;font-size:20px;font-weight:800}.inbox-info{flex:1;overflow:hidden}.inbox-name{font-weight:800;font-size:15px}.inbox-msg{font-size:13px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inbox-item.unread{border-right:4px solid var(--primary);background:#F5F3FF}.unread-dot{width:10px;height:10px;background:var(--primary);border-radius:50%}
-.profile-header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:var(--radius-xl);padding:40px 24px;text-align:center;color:white;margin-bottom:24px;box-shadow:var(--shadow-xl)}.profile-avatar-large{width:100px;height:100px;background:white;border-radius:50%;display:grid;place-items:center;margin:0 auto 16px;font-size:40px;color:var(--primary)}.profile-name{font-size:24px;font-weight:800;margin-bottom:8px}.profile-badge{display:inline-flex;gap:8px;background:rgba(255,255,255,.2);padding:8px 16px;border-radius:999px;font-size:14px;font-weight:600}.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}.stat-card{background:white;padding:20px;border-radius:var(--radius-lg);text-align:center;border:1px solid var(--border);box-shadow:var(--shadow-sm)}.stat-value{font-size:28px;font-weight:800;color:var(--primary)}.stat-label{font-size:13px;color:var(--text-muted);font-weight:600}.guest-card{background:white;border-radius:var(--radius-xl);padding:60px 40px;text-align:center;border:2px dashed var(--border);box-shadow:var(--shadow)}.links-list{background:white;border-radius:var(--radius-xl);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm)}.link-item{display:flex;align-items:center;padding:20px;color:var(--text-muted);text-decoration:none;font-size:15px;font-weight:600;border-bottom:1px solid var(--border)}.link-item i:first-child{width:40px;height:40px;background:#F1F5F9;border-radius:var(--radius);display:grid;place-items:center;margin-left:16px;color:var(--primary)}
-.offer-box,.safe-box,.ratings-box,.notification-box{background:white;border:1px solid var(--border);border-radius:var(--radius-xl);padding:18px;box-shadow:var(--shadow-sm);margin-top:16px}.safe-box{background:#FFFBEB;border-color:#FCD34D;color:#92400E}.chip-row{display:flex;gap:8px;flex-wrap:wrap}.small-chip{background:#F1F5F9;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;color:var(--text-muted)}.rating-stars{display:flex;gap:4px;font-size:20px;color:#F59E0B;cursor:pointer}.notif-item{padding:12px;border-bottom:1px solid var(--border);font-size:14px}.notif-item:last-child{border-bottom:none}.tab-buttons{display:flex;gap:10px;margin-bottom:16px}.tab-buttons button{flex:1}
-@media(max-width:640px){.products-grid{grid-template-columns:repeat(2,1fr);gap:12px}.card-body{padding:12px}.stats-grid{grid-template-columns:1fr}.advanced-panel{grid-template-columns:1fr 1fr}.header{padding:10px}.btn{padding:12px 16px}}
-</style>
+        .login-card {
+            background-color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-card h2 {
+            margin-top: 0;
+            color: var(--pi-purple);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .login-card p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .pi-btn {
+            background-color: var(--pi-purple);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .pi-btn:hover {
+            background-color: #48206b;
+        }
+
+        .pi-btn:active {
+            transform: scale(0.98);
+        }
+
+        #loading, #success-section, #error-message {
+            display: none;
+        }
+
+        #loading {
+            color: var(--pi-gold);
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        #success-section {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #f0fdf4;
+            border-radius: 12px;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        #error-message {
+            margin-top: 15px;
+            color: #dc2626;
+            background-color: #fef2f2;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
 
-<div id="banned-screen" class="hidden" style="position:fixed;inset:0;background:white;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-  <i class="fa-solid fa-ban" style="font-size:80px;color:#EF4444;margin-bottom:20px;animation:pulse 2s infinite"></i>
-  <h1 data-i18n="banned_title">حساب محظور</h1>
-  <p data-i18n="banned_msg" style="color:#6B7280;margin-top:10px;font-size:18px">تم إيقاف حسابك لمخالفة شروط الاستخدام.</p>
+<div class="login-card">
+    <h2>أهلاً بك في موقعنا</h2>
+    <p>بفضل خاصية Pi Sign-in الجديدة، يمكنك الآن تسجيل الدخول بأمان من أي متصفح ويب.</p>
+    
+    <!-- الزر الذي يبدأ عملية تسجيل الدخول -->
+    <button id="pi-login-btn" class="pi-btn" onclick="startPiLogin()">
+        تسجيل الدخول بواسطة Pi
+    </button>
+
+    <!-- شاشة التحميل -->
+    <div id="loading">جاري جلب بياناتك...</div>
+
+    <!-- رسالة الخطأ -->
+    <div id="error-message">حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مجدداً.</div>
+
+    <!-- رسالة النجاح -->
+    <div id="success-section">
+        <h3>تم تسجيل الدخول بنجاح! 🎉</h3>
+        <p>مرحباً بك، <strong id="username-display" style="color: var(--pi-purple);"></strong></p>
+    </div>
 </div>
 
-<div id="introModal" class="modal" style="display:flex;z-index:3000;">
-  <div class="sheet">
-    <div class="modal-header" style="border-bottom:none;padding-bottom:0;">
-      <div class="modal-title" style="color:var(--primary);"><i class="fa-solid fa-rocket"></i><span data-i18n="intro_title">Welcome to Deal Way!</span></div>
-      <button onclick="document.getElementById('introModal').style.display='none'" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="safe-box"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="safe_warning">لا تدفع قبل التأكد من المنتج والبائع. الدفع خارج الموقع P2P ومسؤولية المستخدمين.</span></div>
-    <div class="intro-content">
-      <div class="intro-list-item"><i class="fa-solid fa-store intro-icon"></i><span data-i18n="intro_feat_1">اضف منتجاتك وتواصل بسهولة مع الرواد.</span></div>
-      <div class="intro-list-item"><i class="fa-solid fa-star intro-icon"></i><span data-i18n="intro_feat_4">ميز إعلانك بشريط أصفر للوصول لأكبر عدد!</span></div>
-    </div>
-    <button class="btn btn-ghost" style="width:100%;border-width:2px;" onclick="toggleLanguage()"><i class="fa-solid fa-globe"></i> <span id="introLangText">Switch to Arabic</span></button>
-  </div>
-</div>
-
-<div id="toast-container" class="toast-container"></div>
-
-<header class="header">
-  <div class="brand"><span style="font-weight:900;font-size:26px;letter-spacing:-.5px;"><span style="color:#8B5CF6;">Deal</span><span style="color:#F59E0B;">Way</span></span></div>
-  <div class="header-actions">
-    <button class="lang-btn" onclick="toggleLanguage()"><span id="langText">AR</span></button>
-    <button id="loginBtn" class="btn btn-gold"><i class="fa-solid fa-fingerprint"></i> <span data-i18n="login">دخول</span></button>
-    <div id="headerUser" class="header-user hidden"><div class="status-dot"></div><div id="userDispName" class="header-name">User</div></div>
-  </div>
-</header>
-
-<div class="container">
-  <div id="view-home" class="view-section">
-    <div class="search-container">
-      <div class="search-input-wrap"><input type="text" id="searchInput" class="search-input" onkeyup="filterProducts()" placeholder="ابحث عن منتج..."><i class="fa-solid fa-search search-icon"></i></div>
-      <select id="countryFilter" class="filter-select" onchange="loadStates('countryFilter','stateFilter');filterProducts()"><option value="all">All Countries</option></select>
-      <select id="stateFilter" class="filter-select" onchange="filterProducts()"><option value="all">All States</option></select>
-    </div>
-
-    <div class="advanced-panel">
-      <input id="minPriceFilter" type="number" class="input-box" oninput="filterProducts()" placeholder="Min Price">
-      <input id="maxPriceFilter" type="number" class="input-box" oninput="filterProducts()" placeholder="Max Price">
-      <select id="conditionFilter" class="input-box" onchange="filterProducts()"><option value="all" data-i18n="condition_all">كل الحالات</option></select>
-      <select id="statusFilter" class="input-box" onchange="filterProducts()"><option value="all" data-i18n="status_all">كل الإعلانات</option></select>
-      <select id="sortFilter" class="input-box" onchange="filterProducts()"><option value="newest" data-i18n="sort_newest">الأحدث</option></select>
-    </div>
-
-    <div class="categories-wrapper"><div class="categories-scroll" id="cat-filters"></div></div>
-    <div class="section-header"><div class="section-icon"><i class="fa-solid fa-fire"></i></div><h3 data-i18n="latest_products">أحدث المعروضات</h3></div>
-    <div id="products-list" class="products-grid"></div>
-    <div id="loading" style="text-align:center;padding:40px;color:var(--text-muted)"><div style="display:inline-block;width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;"></div><p style="margin-top:16px;font-weight:600;" data-i18n="loading">جاري التحميل...</p></div>
-  </div>
-
-  <div id="view-details" class="view-section hidden">
-    <button onclick="nav('home')" class="btn btn-ghost" style="margin-bottom:20px;"><i class="fa-solid fa-arrow-right"></i> <span data-i18n="btn_back">رجوع</span></button>
-    <div class="slider-container"><div class="slider-wrapper" id="detail-slider"></div><div class="slider-dots" id="detail-dots"></div></div>
-    <h2 id="detail-title" style="margin:0 0 12px;font-size:24px;font-weight:800;"></h2>
-    <div class="chip-row" style="margin-bottom:14px;">
-      <span class="price-pill" style="font-size:18px;padding:10px 24px;"><span id="detail-price"></span> <span>Pi</span></span>
-      <span class="small-chip"><i class="fa-solid fa-location-dot"></i> <span id="detail-loc-text"></span></span>
-      <span class="small-chip"><i class="fa-solid fa-box"></i> <span id="detail-condition"></span></span>
-      <span class="small-chip"><i class="fa-solid fa-circle-check"></i> <span id="detail-status"></span></span>
-    </div>
-    <div class="safe-box"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="safe_warning">لا تدفع قبل التأكد من المنتج والبائع. الدفع خارج الموقع P2P ومسؤولية المستخدمين.</span></div>
-    <div style="background:white;padding:24px;border-radius:var(--radius-xl);border:1px solid var(--border);margin-bottom:20px;box-shadow:var(--shadow-sm);">
-      <h4 style="margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-align-right" style="color:var(--primary);"></i><span data-i18n="label_desc">الوصف</span></h4>
-      <p id="detail-desc" style="color:#475569;font-size:15px;line-height:1.8;margin:0;white-space:pre-wrap;"></p>
-      <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border);font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-eye" style="color:var(--primary);"></i><span data-i18n="label_views">المشاهدات:</span> <span id="detail-views" style="font-weight:bold;color:var(--text-main);">0</span></div>
-    </div>
-    <div class="seller-card">
-      <div class="seller-avatar" id="detail-seller-avatar"></div>
-      <div class="seller-info">
-        <div id="detail-seller-name" class="seller-name"></div>
-        <div class="seller-stats">
-          <div><i class="fa-solid fa-calendar-days"></i> <span data-i18n="label_joined">انضم:</span> <span id="detail-join-date">...</span></div>
-          <div><i class="fa-solid fa-box-open"></i> <span data-i18n="label_total_ads">عدد الإعلانات:</span> <span id="detail-ad-count">...</span></div>
-          <div><i class="fa-solid fa-star" style="color:var(--accent)"></i> <span data-i18n="seller_rating">تقييم البائع:</span> <span id="detail-rating">...</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="offer-box">
-      <h4><i class="fa-solid fa-hand-holding-dollar" style="color:var(--primary)"></i> <span data-i18n="offers_title">العروض السعرية</span></h4>
-      <div id="offers-list" style="margin:10px 0;"></div>
-      <div id="offer-actions"></div>
-    </div>
-    <div class="ratings-box">
-      <h4><i class="fa-solid fa-star" style="color:var(--accent)"></i> <span data-i18n="ratings_title">تقييمات</span></h4>
-      <div id="ratings-list" style="margin:10px 0;"></div>
-      <div id="rating-actions"></div>
-    </div>
-    <div id="detail-actions" style="margin-top:24px;display:flex;gap:12px;flex-direction:column"></div>
-  </div>
-
-  <div id="view-chats" class="view-section hidden">
-    <div class="section-header"><div class="section-icon" style="background:linear-gradient(135deg,#10B981,#059669);"><i class="fa-solid fa-comments"></i></div><h3 data-i18n="inbox_title">الرسائل الواردة</h3></div>
-    <div id="inbox-list"></div>
-  </div>
-
-  <div id="view-profile" class="view-section hidden">
-    <div id="profile-guest"><div class="guest-card"><div class="empty-state-icon"><i class="fa-solid fa-user-lock"></i></div><h3 data-i18n="guest_title">أنت زائر</h3><p data-i18n="guest_msg">سجل الدخول لإدارة إعلاناتك.</p><button onclick="document.getElementById('loginBtn').click()" class="btn btn-primary" style="margin-top:20px;"><i class="fa-solid fa-right-to-bracket"></i> <span data-i18n="login">دخول</span></button></div></div>
-    <div id="profile-user" class="hidden">
-      <div class="profile-header"><div class="profile-avatar-large"><i class="fa-solid fa-user"></i></div><h3 id="p-username" class="profile-name">...</h3><div class="profile-badge"><i class="fa-solid fa-circle-check"></i><span data-i18n="verified_account">حساب موثق</span></div></div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-value" id="stat-ads">0</div><div class="stat-label" data-i18n="my_ads">إعلاناتي</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-views">0</div><div class="stat-label" data-i18n="stat_views">المشاهدات</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-chats">0</div><div class="stat-label" data-i18n="stat_chats">المحادثات</div></div>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-bottom:16px;padding:18px;" onclick="openAddModal()"><i class="fa-solid fa-plus"></i> <span data-i18n="add_ad_btn">إضافة إعلان جديد</span></button>
-      <div class="tab-buttons">
-        <button class="btn btn-ghost" onclick="showProfileTab('ads')"><i class="fa-solid fa-layer-group"></i> <span data-i18n="my_ads">إعلاناتي</span></button>
-        <button class="btn btn-ghost" onclick="showProfileTab('favorites')"><i class="fa-solid fa-heart"></i> <span data-i18n="favorites">المفضلة</span></button>
-        <button class="btn btn-ghost" onclick="showProfileTab('notifications')"><i class="fa-solid fa-bell"></i> <span data-i18n="notifications">الإشعارات</span></button>
-      </div>
-      <div id="profile-tab-ads"><div id="my-ads-list" class="products-grid" style="margin-bottom:24px;"></div></div>
-      <div id="profile-tab-favorites" class="hidden"><div id="favorites-list" class="products-grid" style="margin-bottom:24px;"></div></div>
-      <div id="profile-tab-notifications" class="hidden"><div id="notifications-list" class="notification-box"></div></div>
-      <div class="links-list">
-        <a href="privacy.html" class="link-item"><i class="fa-solid fa-shield-halved"></i><span data-i18n="link_privacy">سياسة الخصوصية</span></a>
-        <a href="terms.html" class="link-item"><i class="fa-solid fa-file-contract"></i><span data-i18n="link_terms">شروط الخدمة</span></a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<nav class="bottom-nav">
-  <button class="nav-item active" onclick="nav('home')"><i class="fa-solid fa-house-chimney"></i><span data-i18n="nav_home">الرئيسية</span></button>
-  <button class="nav-item" onclick="nav('chats')"><i class="fa-solid fa-comment-dots"></i><span data-i18n="nav_chats">المحادثات</span><span id="chat-badge" class="nav-badge hidden">0</span></button>
-  <button class="nav-item" onclick="nav('profile')"><i class="fa-solid fa-user-gear"></i><span data-i18n="nav_profile">حسابي</span></button>
-</nav>
-
-<div id="addModal" class="modal" onclick="if(event.target==this) closeAddModal()">
-  <div class="sheet">
-    <div class="modal-header"><div class="modal-title"><i class="fa-solid fa-camera"></i><span data-i18n="sell_new_item">بيع منتج جديد</span></div><button onclick="closeAddModal()" class="close-btn"><i class="fa-solid fa-xmark"></i></button></div>
-    <div id="image-previews" class="previews-container"></div>
-    <label class="file-upload-wrapper" id="dropZone"><input id="addImg" type="file" accept="image/*" multiple style="display:none" onchange="handleFileSelect(this)"><div class="file-upload-content" id="upload-placeholder"><i class="fa-solid fa-cloud-arrow-up file-upload-icon"></i><div class="file-upload-text" data-i18n="upload_text">اضغط لاختيار الصور</div><div class="file-upload-note" data-i18n="upload_hint">(حد أقصى 3 صور - حجم صغير)</div></div></label>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-tag"></i><span data-i18n="label_prod_name">اسم المنتج</span></label><input id="addName" class="input-box" /></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-folder-open"></i><span data-i18n="label_category">القسم</span></label><select id="addCategory" class="input-box"></select></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-list-check"></i><span data-i18n="condition">حالة المنتج</span></label><select id="addCondition" class="input-box"></select></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-circle-check"></i><span data-i18n="ad_status">حالة الإعلان</span></label><select id="addStatus" class="input-box"></select></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-earth-americas"></i><span data-i18n="label_country">Country</span></label><select id="addCountry" class="input-box" onchange="loadStates('addCountry','addState')"><option value="" disabled selected>Select Country</option></select></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-map-location-dot"></i><span data-i18n="label_state">State / Province</span></label><select id="addState" class="input-box"><option value="" disabled selected>Select Country First</option></select></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-coins"></i><span data-i18n="label_price">السعر (Pi)</span></label><input id="addPrice" type="number" class="input-box" placeholder="0.00" /></div>
-    <div class="form-group"><label class="form-label"><i class="fa-solid fa-align-left"></i><span data-i18n="label_desc">الوصف</span></label><textarea id="addDesc" class="input-box"></textarea></div>
-    <button id="publishBtn" class="btn btn-primary" style="width:100%;padding:18px;" onclick="submitProduct()" data-i18n="publish_btn">نشر الإعلان</button>
-  </div>
-</div>
-
-<div id="promoteModal" class="modal" onclick="if(event.target==this) closePromoteModal()">
-  <div class="sheet"><div class="modal-header"><div class="modal-title"><i class="fa-solid fa-rocket" style="color:var(--accent);"></i><span data-i18n="promote_title">اختر خطة التمييز</span></div><button onclick="closePromoteModal()" class="close-btn"><i class="fa-solid fa-xmark"></i></button></div>
-    <button class="btn btn-gold" onclick="triggerPayment(3,3)">3 π - <span data-i18n="plan_3_3">لمدة 3 أيام</span></button>
-    <button class="btn btn-gold" onclick="triggerPayment(5,7)">5 π - <span data-i18n="plan_5_7">لمدة 7 أيام</span></button>
-  </div>
-</div>
-
-<div id="chatModal" class="modal" style="z-index:2100" onclick="if(event.target==this) closeChat()">
-  <div class="sheet" style="height:92vh;padding:20px;">
-    <div class="modal-header"><div><div id="chatTitle" style="font-weight:800;font-size:16px;"></div><div id="chatPeer" style="font-size:13px;color:var(--text-muted)"></div></div><button onclick="closeChat()" class="close-btn"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="safe-box" style="margin:0;"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="safe_warning">لا تدفع قبل التأكد من المنتج والبائع. الدفع خارج الموقع P2P ومسؤولية المستخدمين.</span></div>
-    <div id="msgContainer" class="chat-area"></div>
-    <div style="display:flex;gap:12px;align-items:center;"><input id="msgInput" class="input-box" placeholder="" style="margin:0;flex:1;border-radius:999px;"><button class="btn btn-primary" onclick="sendMsg()" style="width:56px;height:56px;border-radius:50%;padding:0;"><i class="fa-solid fa-paper-plane"></i></button></div>
-  </div>
-</div>
-
+<!-- كود JavaScript الخاص بالاتصال بمنصة Pi -->
 <script>
-const SUPABASE_URL="https://xncapmzlwuisupkjlftb.supabase.co";
-const SUPABASE_KEY="sb_publishable_zPECXAiI_bDbeLtRYe3vIw_IEt_p_AS";
-const API_BASE="/.netlify/functions";
-let sb,user=null,activeChat=null,currentLang=localStorage.getItem('lang')||'en',selectedFiles=[],mainImageIndex=0,currentPromoteProductId=null,globalProducts=[],activeCategory='all',currentDetailProduct=null;
+    // ⚠️ هااااام جداً: ضع Client ID الخاص بتطبيقك من بوابة مطوري Pi
+    const CLIENT_ID = 'DE9gV41Op9HQV9I8kLDKibDLTJp41g6wmHqesVMpylc'; 
+    
+    // يقوم بجلب رابط صفحتك الحالي لكي يعود إليه النظام بعد تسجيل الدخول
+    const REDIRECT_URI = window.location.origin + window.location.pathname;
 
-const translations={
-ar:{login:"دخول",latest_products:"أحدث المعروضات",loading:"جاري التحميل...",inbox_title:"الرسائل الواردة",guest_title:"أنت زائر",guest_msg:"سجل الدخول لإدارة إعلاناتك.",add_ad_btn:"إضافة إعلان جديد",my_ads:"إعلاناتي",nav_home:"الرئيسية",nav_chats:"المحادثات",nav_profile:"حسابي",sell_new_item:"بيع منتج جديد",upload_text:"اضغط لاختيار الصور",upload_hint:"(حد أقصى 3 صور - حجم صغير)",label_prod_name:"اسم المنتج",label_category:"القسم",label_price:"السعر (Pi)",label_desc:"الوصف",publish_btn:"نشر الإعلان",msg_placeholder:"اكتب رسالة...",promoted_badge:"مميز",message_seller:"مراسلة البائع",promote_ad_btn:"تمييز الإعلان",delete_btn:"حذف",confirm_delete:"هل أنت متأكد من الحذف؟",no_products:"لا توجد منتجات",no_messages:"لا توجد رسائل",toast_login_first:"يجب تسجيل الدخول أولاً",toast_fill_data:"يرجى إكمال البيانات المطلوبة",toast_upload_fail:"فشل رفع الصورة",toast_success_add:"تم نشر الإعلان بنجاح",toast_max_images:"الحد الأقصى 3 صور",banned_title:"حساب محظور",banned_msg:"تم إيقاف حسابك لمخالفة شروط الاستخدام.",ph_prod_name:"مثال: آيفون 13 برو",ph_desc:"اكتب تفاصيل المنتج وحالته...",cat_all:"الكل",cat_cars:"سيارات",cat_electronics:"إلكترونيات",cat_phones:"هواتف",cat_fashion:"ملابس",cat_home:"منزل",cat_other:"أخرى",select_cat:"اختر القسم المناسب",btn_back:"رجوع",label_joined:"انضم:",label_total_ads:"إعلانات:",ph_search:"ابحث عن منتج...",label_country:"الدولة",label_state:"المنطقة / المحافظة",promote_title:"اختر خطة التمييز",plan_3_3:"لمدة 3 أيام",plan_5_7:"لمدة 7 أيام",label_views:"المشاهدات:",stat_views:"المشاهدات",stat_chats:"المحادثات",link_privacy:"سياسة الخصوصية",link_terms:"شروط الخدمة",intro_title:"مرحباً بك في Deal Way!",intro_feat_1:"اضف منتجاتك وتواصل بسهولة مع الرواد.",intro_feat_4:"ميز إعلانك بشريط أصفر للوصول لأكبر عدد!",intro_switch_btn:"Switch to English",safe_warning:"لا تدفع قبل التأكد من المنتج والبائع. الدفع خارج الموقع P2P ومسؤولية المستخدمين.",condition:"حالة المنتج",ad_status:"حالة الإعلان",condition_all:"كل الحالات",status_all:"كل الإعلانات",sort_newest:"الأحدث",sort_low:"الأرخص",sort_high:"الأعلى سعراً",sort_views:"الأعلى مشاهدة",sort_promoted:"المميز أولاً",new:"جديد",used:"مستعمل",like_new:"كالجديد",needs_repair:"يحتاج صيانة",available:"متاح",sold:"تم البيع",reserved:"محجوز",favorites:"المفضلة",notifications:"الإشعارات",verified_account:"حساب موثق",seller_rating:"تقييم البائع:",offers_title:"العروض السعرية",ratings_title:"تقييمات",send_offer:"إرسال عرض",report_ad:"الإبلاغ عن الإعلان",share_ad:"مشاركة الإعلان",copy_link:"نسخ الرابط",mark_sold:"تحديد تم البيع",mark_available:"تحديد متاح",main_image:"رئيسية"},
-en:{login:"Login",latest_products:"Latest Products",loading:"Loading...",inbox_title:"Inbox",guest_title:"Guest User",guest_msg:"Login to manage your ads.",add_ad_btn:"Post New Ad",my_ads:"My Ads",nav_home:"Home",nav_chats:"Chats",nav_profile:"Profile",sell_new_item:"Sell New Item",upload_text:"Tap to upload images",upload_hint:"(Max 3 images - Small size)",label_prod_name:"Product Name",label_category:"Category",label_price:"Price (Pi)",label_desc:"Description",publish_btn:"Publish Ad",msg_placeholder:"Type a message...",promoted_badge:"Promoted",message_seller:"Message Seller",promote_ad_btn:"Promote Ad",delete_btn:"Delete",confirm_delete:"Are you sure to delete?",no_products:"No products found",no_messages:"No messages",toast_login_first:"Login required first",toast_fill_data:"Please fill all required fields",toast_upload_fail:"Image upload failed",toast_success_add:"Ad published successfully",toast_max_images:"Max 3 images allowed",banned_title:"Account Banned",banned_msg:"Your account is suspended due to violations.",ph_prod_name:"Ex: iPhone 13 Pro",ph_desc:"Describe item details...",cat_all:"All",cat_cars:"Cars",cat_electronics:"Electronics",cat_phones:"Phones",cat_fashion:"Fashion",cat_home:"Home",cat_other:"Other",select_cat:"Select Category",btn_back:"Back",label_joined:"Joined:",label_total_ads:"Total Ads:",ph_search:"Search products...",label_country:"Country",label_state:"State / Province",promote_title:"Choose Promotion Plan",plan_3_3:"For 3 Days",plan_5_7:"For 7 Days",label_views:"Views:",stat_views:"Views",stat_chats:"Chats",link_privacy:"Privacy Policy",link_terms:"Terms of Service",intro_title:"Welcome to Deal Way!",intro_feat_1:"Post items & connect with Pioneers easily.",intro_feat_4:"Boost ads with a Yellow Badge to reach more!",intro_switch_btn:"التحويل للعربية",safe_warning:"Do not pay before verifying the item and seller. Payments are off-platform P2P and users are responsible.",condition:"Condition",ad_status:"Ad Status",condition_all:"All Conditions",status_all:"All Ads",sort_newest:"Newest",sort_low:"Lowest Price",sort_high:"Highest Price",sort_views:"Most Viewed",sort_promoted:"Promoted First",new:"New",used:"Used",like_new:"Like New",needs_repair:"Needs Repair",available:"Available",sold:"Sold",reserved:"Reserved",favorites:"Favorites",notifications:"Notifications",verified_account:"Verified Account",seller_rating:"Seller Rating:",offers_title:"Offers",ratings_title:"Ratings",send_offer:"Send Offer",report_ad:"Report Ad",share_ad:"Share Ad",copy_link:"Copy Link",mark_sold:"Mark Sold",mark_available:"Mark Available",main_image:"Main"}
-};
-const CATEGORIES_CONFIG=[{id:'all',key:'cat_all',icon:'fa-layer-group'},{id:'cars',key:'cat_cars',icon:'fa-car'},{id:'electronics',key:'cat_electronics',icon:'fa-laptop'},{id:'phones',key:'cat_phones',icon:'fa-mobile-screen'},{id:'fashion',key:'cat_fashion',icon:'fa-shirt'},{id:'home',key:'cat_home',icon:'fa-couch'},{id:'other',key:'cat_other',icon:'fa-box'}];
-const CONDITIONS=['new','used','like_new','needs_repair']; const STATUSES=['available','reserved','sold'];
+    // دالة لتوليد رمز عشوائي للحماية (Security State)
+    function generateState() {
+        return Math.random().toString(36).substring(2, 15);
+    }
 
-document.addEventListener("DOMContentLoaded",async()=>{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);updateLanguage();initPi();loadAllProducts();initLocations();initDragAndDrop();});
+    // 1. الدالة التي تعمل عند النقر على زر تسجيل الدخول
+    function startPiLogin() {
+        if(CLIENT_ID === 'ضع_معرف_العميل_هنا') {
+            alert('يرجى وضع معرف العميل (Client ID) الخاص بك في الكود أولاً!');
+            return;
+        }
 
-function formatCurrency(num){if(!num)return"0";return parseFloat(num).toLocaleString('en-US')}
-function t(key){return translations[currentLang][key]||key}
-function toggleLanguage(){currentLang=currentLang==='ar'?'en':'ar';localStorage.setItem('lang',currentLang);updateLanguage()}
-function updateLanguage(){
-  document.getElementById('langText').innerText=currentLang==='ar'?'EN':'AR';document.getElementById('introLangText').innerText=t('intro_switch_btn');document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='ar'?'rtl':'ltr';
-  document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');if(translations[currentLang][key])el.innerHTML=translations[currentLang][key]});
-  ['addName','addDesc','msgInput','searchInput'].forEach(id=>{const el=document.getElementById(id);if(!el)return; if(id==='addName')el.placeholder=t('ph_prod_name'); if(id==='addDesc')el.placeholder=t('ph_desc'); if(id==='msgInput')el.placeholder=t('msg_placeholder'); if(id==='searchInput')el.placeholder=t('ph_search')});
-  initCategories();initFeatureSelects();if(globalProducts.length)renderProducts();
-}
-function initFeatureSelects(){
-  document.getElementById('conditionFilter').innerHTML=`<option value="all">${t('condition_all')}</option>`+CONDITIONS.map(c=>`<option value="${c}">${t(c)}</option>`).join('');
-  document.getElementById('statusFilter').innerHTML=`<option value="all">${t('status_all')}</option>`+STATUSES.map(s=>`<option value="${s}">${t(s)}</option>`).join('');
-  document.getElementById('sortFilter').innerHTML=`<option value="newest">${t('sort_newest')}</option><option value="low">${t('sort_low')}</option><option value="high">${t('sort_high')}</option><option value="views">${t('sort_views')}</option><option value="promoted">${t('sort_promoted')}</option>`;
-  document.getElementById('addCondition').innerHTML=`<option value="" disabled selected>${t('condition')}</option>`+CONDITIONS.map(c=>`<option value="${c}">${t(c)}</option>`).join('');
-  document.getElementById('addStatus').innerHTML=STATUSES.map(s=>`<option value="${s}">${t(s)}</option>`).join('');
-}
-function showToast(messageKey,type='success'){const c=document.getElementById('toast-container'),toast=document.createElement('div');toast.className=`toast ${type}`;toast.innerHTML=`<i class="fa-solid ${type==='error'?'fa-circle-exclamation':type==='warning'?'fa-triangle-exclamation':'fa-check-circle'}"></i><span class="toast-msg">${t(messageKey)}</span>`;c.appendChild(toast);setTimeout(()=>{toast.style.opacity='0';setTimeout(()=>toast.remove(),300)},3500)}
-function initCategories(){document.getElementById('cat-filters').innerHTML=CATEGORIES_CONFIG.map(c=>`<div class="cat-chip ${c.id===activeCategory?'active':''}" onclick="filterByCategory('${c.id}',this)"><i class="fa-solid ${c.icon}"></i>${t(c.key)}</div>`).join('');document.getElementById('addCategory').innerHTML=`<option value="" disabled selected>${t('select_cat')}</option>`+CATEGORIES_CONFIG.filter(c=>c.id!=='all').map(c=>`<option value="${c.id}">${t(c.key)}</option>`).join('')}
-async function initLocations(){await fetchCountries('countryFilter');await fetchCountries('addCountry')}
-async function fetchCountries(elementId){const select=document.getElementById(elementId);try{const res=await fetch("https://countriesnow.space/api/v0.1/countries/iso");const data=await res.json();if(!data.error){data.data.sort((a,b)=>a.name.localeCompare(b.name)).forEach(c=>{const opt=document.createElement('option');opt.value=c.name;opt.innerText=c.name;select.appendChild(opt)})}}catch(e){console.error(e)}}
-async function loadStates(countryElementId,stateElementId){const countryName=document.getElementById(countryElementId).value,stateSelect=document.getElementById(stateElementId);stateSelect.innerHTML=stateElementId==='stateFilter'?'<option value="all">All States</option>':'<option value="" disabled selected>Loading...</option>';if(countryName==='all'||!countryName)return;try{const res=await fetch("https://countriesnow.space/api/v0.1/countries/states",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({country:countryName})});const data=await res.json();stateSelect.innerHTML=stateElementId==='stateFilter'?'<option value="all">All States</option>':'<option value="" disabled selected>Select State</option>';if(!data.error&&data.data.states.length){data.data.states.forEach(s=>{const opt=document.createElement('option');opt.value=s.name;opt.innerText=s.name;stateSelect.appendChild(opt)})}else stateSelect.innerHTML+='<option value="Main">Main</option>'}catch(e){stateSelect.innerHTML='<option value="">Error</option>'}}
-function filterByCategory(catId,element){document.querySelectorAll('.cat-chip').forEach(el=>el.classList.remove('active'));element.classList.add('active');activeCategory=catId;filterProducts()}
-function nav(viewName){document.querySelectorAll('.view-section').forEach(el=>el.classList.add('hidden'));document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));document.getElementById(`view-${viewName}`).classList.remove('hidden');document.querySelectorAll('.nav-item')[viewName==='home'?0:viewName==='chats'?1:2].classList.add('active');if(viewName==='profile'&&user){loadMyAds();loadFavorites();loadNotifications()}if(viewName==='chats'&&user)loadInbox()}
+        // إنشاء وتخزين رمز أمان للتحقق منه لاحقاً
+        const state = generateState();
+        sessionStorage.setItem('pi_auth_state', state);
 
-function initPi(){const btn=document.getElementById("loginBtn");const onIncompletePaymentFound=(payment)=>console.log("Incomplete:",payment);if(!window.Pi){btn.onclick=()=>handleLogin("test_"+Math.floor(Math.random()*1000),"Guest_"+Math.floor(Math.random()*100));return}Pi.init({version:"2.0",sandbox:false});btn.onclick=async()=>{try{const auth=await Pi.authenticate(["username","payments"],onIncompletePaymentFound);handleLogin(auth.user.uid,auth.user.username)}catch(e){console.error(e)}}}
-async function handleLogin(uid,username){const {data:userData}=await sb.from("users").select("is_banned,is_verified").eq("pi_id",uid).single();if(userData&&userData.is_banned){document.getElementById("banned-screen").classList.remove("hidden");document.getElementById("banned-screen").style.display="flex";return}user={uid,username,is_verified:userData?.is_verified||false};await sb.from("users").upsert({pi_id:uid,username},{onConflict:'pi_id'});document.getElementById("loginBtn").classList.add("hidden");document.getElementById("headerUser").classList.remove("hidden");document.getElementById("userDispName").innerText=username;document.getElementById("profile-guest").classList.add("hidden");document.getElementById("profile-user").classList.remove("hidden");document.getElementById("p-username").innerText=username;loadMyAds();loadInbox();loadFavorites();loadNotifications();checkUnreadMessages();setInterval(checkUnreadMessages,10000)}
+        // إنشاء رابط التوجيه إلى سيرفرات Pi (حسب المستندات الرسمية)
+        const authUrl = new URL('https://accounts.pinet.com/oauth/authorize');
+        authUrl.searchParams.append('response_type', 'token');
+        authUrl.searchParams.append('client_id', CLIENT_ID);
+        authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+        authUrl.searchParams.append('scope', 'username');
+        authUrl.searchParams.append('state', state);
 
-async function loadAllProducts(){const {data}=await sb.from("products").select("*").order("promoted_until",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});document.getElementById("loading").style.display="none";if(data){globalProducts=data;renderProducts()}else document.getElementById("products-list").innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><h3>Error Loading</h3></div>`}
-function filterProducts(){renderProducts()}
-function isPromoted(p){return p.promoted_until&&new Date(p.promoted_until)>new Date()}
-function getProductImg(p){return (p.images&&Array.isArray(p.images)&&p.images.length)?p.images[p.main_image_index||0]:(p.image_url||"https://placehold.co/400x400/f1f5f9/94a3b8?text=No+Image")}
-function renderProducts(){
-  const list=document.getElementById("products-list");list.innerHTML="";
-  const searchText=document.getElementById('searchInput').value.toLowerCase(),countryFilter=document.getElementById('countryFilter').value,stateFilter=document.getElementById('stateFilter').value,min=parseFloat(document.getElementById('minPriceFilter').value||0),max=parseFloat(document.getElementById('maxPriceFilter').value||Infinity),cond=document.getElementById('conditionFilter').value,status=document.getElementById('statusFilter').value,sort=document.getElementById('sortFilter').value;
-  let filtered=globalProducts.filter(p=>{if(activeCategory!=='all'&&p.category!==activeCategory)return false;if(searchText&&!String(p.name||'').toLowerCase().includes(searchText))return false;if(countryFilter!=='all'&&p.country!==countryFilter)return false;if(stateFilter!=='all'&&p.location!==stateFilter)return false;if(cond!=='all'&&(p.condition||'used')!==cond)return false;if(status!=='all'&&(p.status||'available')!==status)return false;const price=parseFloat(p.price||0);if(price<min||price>max)return false;return true});
-  filtered.sort((a,b)=>sort==='low'?a.price-b.price:sort==='high'?b.price-a.price:sort==='views'?(b.views||0)-(a.views||0):sort==='promoted'?(isPromoted(b)?1:0)-(isPromoted(a)?1:0):new Date(b.created_at)-new Date(a.created_at));
-  if(!filtered.length){list.innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon"><i class="fa-solid fa-box-open"></i></div><h3>${t('no_products')}</h3></div>`;return}
-  filtered.forEach(p=>{const promo=isPromoted(p),sold=(p.status||'available')==='sold',locText=`${p.country||''} - ${p.location||''}`;
-    list.innerHTML+=`<div class="card ${promo?'promoted':''}" onclick="openProductDetails(${p.id})">
-      ${promo?`<div class="promo-badge"><i class="fa-solid fa-crown"></i>${t('promoted_badge')}</div>`:''}${sold?`<div class="sold-badge">${t('sold')}</div>`:''}
-      <button class="fav-btn" onclick="event.stopPropagation();toggleFavorite(${p.id})"><i class="fa-solid fa-heart"></i></button>
-      <button class="share-mini" onclick="event.stopPropagation();shareProduct(${p.id})"><i class="fa-solid fa-share-nodes"></i></button>
-      <div class="card-img-wrap"><img src="${getProductImg(p)}" class="card-img" loading="lazy" onerror="this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=No+Image'"><div class="location-tag"><i class="fa-solid fa-location-dot"></i>${locText}</div></div>
-      <div class="card-body"><h4 class="card-title">${escapeHtml(p.name)}</h4><div class="price-pill"><span>${formatCurrency(p.price)}</span><span>π</span></div><div class="chip-row"><span class="small-chip">${t(p.condition||'used')}</span><span class="small-chip">${t(p.status||'available')}</span></div><div class="card-desc">${escapeHtml(p.description||'')}</div></div>
-    </div>`})
-}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+        // توجيه المستخدم لصفحة Pi لتسجيل الدخول أو مسح الـ QR Code
+        window.location.href = authUrl.toString();
+    }
 
-async function openProductDetails(pid){
-  const p=globalProducts.find(x=>x.id==pid);if(!p)return;currentDetailProduct=p;
-  const newViews=(p.views||0)+1;p.views=newViews;sb.from('products').update({views:newViews}).eq('id',pid).then();
-  const images=(p.images&&Array.isArray(p.images)&&p.images.length)?p.images:(p.image_url?[p.image_url]:["https://placehold.co/600x600/f1f5f9/94a3b8?text=No+Image"]);
-  document.getElementById('detail-slider').innerHTML=images.map(src=>`<div class="slide"><img src="${src}" class="slide-img" onerror="this.src='https://placehold.co/600x600/f1f5f9/94a3b8?text=No+Image'"></div>`).join('');
-  document.getElementById('detail-dots').innerHTML=images.map((_,i)=>`<div class="dot ${i===0?'active':''}" onclick="goToSlide(${i})"></div>`).join('');
-  document.getElementById('detail-title').innerText=p.name;document.getElementById('detail-price').innerText=formatCurrency(p.price);document.getElementById('detail-desc').innerText=p.description||"";document.getElementById('detail-loc-text').innerText=`${p.country||''} - ${p.location||''}`;document.getElementById('detail-views').innerText=formatCurrency(newViews);document.getElementById('detail-condition').innerText=t(p.condition||'used');document.getElementById('detail-status').innerText=t(p.status||'available');
-  document.getElementById('detail-seller-name').innerHTML=`${escapeHtml(p.seller_username||"Unknown")} <span id="seller-verified"></span>`;document.getElementById('detail-seller-avatar').innerText=(p.seller_username||"U").charAt(0).toUpperCase();
-  const isOwner=user&&p.seller_pi_id===user.uid;
-  document.getElementById('detail-actions').innerHTML=isOwner?ownerActions(p):buyerActions(p);
-  navDetails();loadSellerInfo(p);loadOffers(p);loadRatings(p);
-}
-function navDetails(){document.querySelectorAll('.view-section').forEach(el=>el.classList.add('hidden'));document.getElementById('view-details').classList.remove('hidden')}
-function ownerActions(p){const sold=(p.status||'available')==='sold';return `<button onclick="openPromoteOptions(${p.id})" class="btn btn-gold" style="width:100%"><i class="fa-solid fa-rocket"></i>${t('promote_ad_btn')}</button><button onclick="updateAdStatus(${p.id},'${sold?'available':'sold'}')" class="btn btn-ghost" style="width:100%"><i class="fa-solid fa-circle-check"></i>${sold?t('mark_available'):t('mark_sold')}</button><button onclick="deleteProduct(${p.id})" class="btn btn-danger" style="width:100%"><i class="fa-solid fa-trash"></i>${t('delete_btn')}</button>`}
-function buyerActions(p){return `<button onclick="openChatRoom(${p.id},'${p.seller_pi_id}','${escapeJs(p.name)}','${escapeJs(p.seller_username||'User')}')" class="btn btn-primary" style="width:100%"><i class="fa-solid fa-comment-dots"></i>${t('message_seller')}</button><button onclick="shareProduct(${p.id})" class="btn btn-ghost" style="width:100%"><i class="fa-solid fa-share-nodes"></i>${t('share_ad')}</button><button onclick="reportAd(${p.id})" class="btn btn-ghost" style="width:100%;color:var(--danger)"><i class="fa-solid fa-flag"></i>${t('report_ad')}</button>`}
-function escapeJs(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
-async function loadSellerInfo(p){try{const {data:userData}=await sb.from('users').select('created_at,is_verified').eq('pi_id',p.seller_pi_id).single();if(userData){document.getElementById('detail-join-date').innerText=new Date(userData.created_at).toLocaleDateString(currentLang==='ar'?'ar-EG':'en-US');document.getElementById('seller-verified').innerHTML=userData.is_verified?`<span class="verified-badge"><i class="fa-solid fa-check"></i> ${t('verified_account')}</span>`:''}const {count}=await sb.from('products').select('*',{count:'exact',head:true}).eq('seller_pi_id',p.seller_pi_id);document.getElementById('detail-ad-count').innerText=count||0;const {data:ratings}=await sb.from('ratings').select('stars').eq('seller_pi_id',p.seller_pi_id);const avg=ratings&&ratings.length?(ratings.reduce((s,r)=>s+r.stars,0)/ratings.length).toFixed(1):'0.0';document.getElementById('detail-rating').innerText=`${avg} / 5 (${ratings?.length||0})`}catch(e){console.error(e)}}
-function goToSlide(i){const slider=document.getElementById('detail-slider');slider.scrollTo({left:i*slider.offsetWidth,behavior:'smooth'})}
+    // 2. الدالة التي تعمل تلقائياً للتحقق مما إذا كان المستخدم عائداً للتو من تسجيل الدخول
+    async function checkLoginRedirect() {
+        // فحص الرابط بحثاً عن بيانات المرور (Access Token) التي يرسلها Pi
+        const hash = window.location.hash.substring(1);
+        if (!hash) return;
 
-function openAddModal(){document.getElementById("addModal").style.display="flex";selectedFiles=[];mainImageIndex=0;updateImagePreviews()}
-function closeAddModal(){document.getElementById("addModal").style.display="none";resetForm()}
-function initDragAndDrop(){const dz=document.getElementById('dropZone');if(!dz)return;['dragenter','dragover','dragleave','drop'].forEach(e=>dz.addEventListener(e,x=>{x.preventDefault();x.stopPropagation()}));dz.addEventListener('drop',e=>{const files=Array.from(e.dataTransfer.files).slice(0,3-selectedFiles.length);if(selectedFiles.length+e.dataTransfer.files.length>3)showToast('toast_max_images','error');selectedFiles=[...selectedFiles,...files];updateImagePreviews()})}
-function handleFileSelect(input){if(input.files){const files=Array.from(input.files);if(selectedFiles.length+files.length>3){showToast('toast_max_images','error');return}selectedFiles=[...selectedFiles,...files];updateImagePreviews()}input.value=""}
-function updateImagePreviews(){const c=document.getElementById('image-previews');c.innerHTML="";selectedFiles.forEach((file,index)=>{const reader=new FileReader();reader.onload=e=>{const div=document.createElement('div');div.className=`preview-box ${index===mainImageIndex?'preview-main':''}`;div.innerHTML=`<img src="${e.target.result}"><div class="preview-remove" onclick="removeFile(${index})"><i class="fa-solid fa-xmark"></i></div><div class="preview-set-main" title="${t('main_image')}" onclick="setMainImage(${index})"><i class="fa-solid fa-star"></i></div>`;c.appendChild(div)};reader.readAsDataURL(file)});document.getElementById('upload-placeholder').style.display=selectedFiles.length>=3?'none':'flex'}
-function setMainImage(i){mainImageIndex=i;updateImagePreviews()} function removeFile(i){selectedFiles.splice(i,1);if(mainImageIndex>=selectedFiles.length)mainImageIndex=0;updateImagePreviews()}
-function resetForm(){['addName','addPrice','addDesc','addCategory','addCountry'].forEach(id=>document.getElementById(id).value="");document.getElementById('addState').innerHTML='<option value="" disabled selected>Select Country First</option>';selectedFiles=[];mainImageIndex=0;updateImagePreviews()}
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const state = params.get('state');
 
-async function submitProduct(){
-  if(!user)return showToast('toast_login_first','error');
-  const name=addName.value,price=addPrice.value,desc=addDesc.value,category=addCategory.value,country=addCountry.value,state=addState.value,condition=addCondition.value,status=addStatus.value||'available';const btn=publishBtn;
-  if(!name||!price||!category||!country||!state||!condition)return showToast('toast_fill_data','error');
-  btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> '+t('loading');btn.disabled=true;let uploadedUrls=[];
-  if(selectedFiles.length){try{const options={maxSizeMB:.8,maxWidthOrHeight:1200,useWebWorker:true,fileType:"image/jpeg"};for(const file of selectedFiles){const compressedFile=await imageCompression(file,options);const path=`${user.uid}/${Date.now()}_${Math.random().toString(36).substr(2,5)}.jpg`;const {error}=await sb.storage.from("images").upload(path,compressedFile);if(error)throw error;uploadedUrls.push(sb.storage.from("images").getPublicUrl(path).data.publicUrl)}}catch(e){console.error(e);showToast('toast_upload_fail','error');btn.innerHTML=t('publish_btn');btn.disabled=false;return}}
-  await sb.from("products").insert({name,price,description:desc,images:uploadedUrls,image_url:uploadedUrls[mainImageIndex]||uploadedUrls[0]||null,main_image_index:mainImageIndex,seller_pi_id:user.uid,seller_username:user.username,category,location:state,country,condition,status,views:0});
-  await loadAllProducts();await loadMyAds();addNotification(user.uid,`تم نشر إعلانك: ${name}`);showToast('toast_success_add');closeAddModal();btn.innerHTML=t('publish_btn');btn.disabled=false;
-}
+        if (accessToken) {
+            // التحقق من الأمان لمعرفة ما إذا كان الطلب شرعياً
+            const savedState = sessionStorage.getItem('pi_auth_state');
+            if (state !== savedState) {
+                console.error('حالة غير متطابقة (State mismatch) - قد يكون هناك تلاعب.');
+                return;
+            }
 
-async function loadMyAds(){if(!user)return;const list=document.getElementById("my-ads-list");list.innerHTML=`<div class="empty-state"><div class="skeleton" style="height:180px"></div></div>`;const {data:products}=await sb.from("products").select("*").eq("seller_pi_id",user.uid).order("created_at",{ascending:false});let totalViews=products?products.reduce((s,p)=>s+(p.views||0),0):0;const {data:messages}=await sb.from("messages").select("product_id,sender_pi_id,receiver_pi_id").or(`sender_pi_id.eq.${user.uid},receiver_pi_id.eq.${user.uid}`);let uniqueChats=new Set();if(messages)messages.forEach(m=>uniqueChats.add(`${m.product_id}_${m.sender_pi_id===user.uid?m.receiver_pi_id:m.sender_pi_id}`));statAds.innerText=products?products.length:0;statViews.innerText=formatCurrency(totalViews);statChats.innerText=uniqueChats.size;list.innerHTML="";if(products&&products.length)products.forEach(p=>list.innerHTML+=miniCard(p));else list.innerHTML=`<div class="empty-state" style="grid-column:1/-1;"><h3>${t('no_products')}</h3></div>`}
-function miniCard(p){return `<div class="card" onclick="openProductDetails(${p.id})"><div class="card-img-wrap"><img src="${getProductImg(p)}" class="card-img"></div><div class="card-body"><div class="card-title">${escapeHtml(p.name)}</div><div class="chip-row"><span class="small-chip"><i class="fa-solid fa-eye"></i>${formatCurrency(p.views||0)}</span><span class="small-chip">${t(p.status||'available')}</span></div></div></div>`}
+            // تنظيف الرابط لإخفاء الـ Access Token لأسباب أمنية ولجمالية الرابط
+            window.history.replaceState(null, null, window.location.pathname);
 
-function showProfileTab(tab){['ads','favorites','notifications'].forEach(x=>document.getElementById(`profile-tab-${x}`).classList.add('hidden'));document.getElementById(`profile-tab-${tab}`).classList.remove('hidden');if(tab==='favorites')loadFavorites();if(tab==='notifications')loadNotifications()}
-async function toggleFavorite(pid){if(!user)return showToast('toast_login_first','error');const key=`fav_${user.uid}_${pid}`;let favs=JSON.parse(localStorage.getItem('dealway_favorites')||'[]');if(favs.includes(pid)){favs=favs.filter(x=>x!==pid);showToast('Removed from favorites','warning')}else{favs.push(pid);showToast('Added to favorites','success')}localStorage.setItem('dealway_favorites',JSON.stringify(favs))}
-function loadFavorites(){if(!user)return;const list=document.getElementById('favorites-list');let favs=JSON.parse(localStorage.getItem('dealway_favorites')||'[]');let items=globalProducts.filter(p=>favs.includes(p.id));list.innerHTML=items.length?items.map(miniCard).join(''):`<div class="empty-state" style="grid-column:1/-1;"><h3>${t('favorites')}</h3><p>No favorites yet</p></div>`}
+            // تعديل واجهة المستخدم
+            document.getElementById('pi-login-btn').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
 
-function addNotification(uid,msg){if(!uid)return;let arr=JSON.parse(localStorage.getItem(`notif_${uid}`)||'[]');arr.unshift({msg,date:new Date().toISOString()});localStorage.setItem(`notif_${uid}`,JSON.stringify(arr.slice(0,50)))}
-function loadNotifications(){if(!user)return;const c=document.getElementById('notifications-list');let arr=JSON.parse(localStorage.getItem(`notif_${user.uid}`)||'[]');c.innerHTML=arr.length?arr.map(n=>`<div class="notif-item"><b>${escapeHtml(n.msg)}</b><br><small>${new Date(n.date).toLocaleString()}</small></div>`).join(''):`<div class="empty-state"><h3>${t('notifications')}</h3><p>No notifications yet</p></div>`}
+            try {
+                // استخدام الرمز (Access Token) لجلب بيانات اسم المستخدم من Pi API
+                const response = await fetch('https://api.minepi.com/v2/me', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
 
-async function updateAdStatus(pid,status){await sb.from('products').update({status}).eq('id',pid);const p=globalProducts.find(x=>x.id==pid);if(p)p.status=status;showToast('Updated','success');await loadAllProducts();openProductDetails(pid)}
-async function deleteProduct(id){if(confirm(t('confirm_delete'))){await sb.from("products").delete().eq("id",id);loadAllProducts();loadMyAds();nav('home');showToast('delete_btn','success')}}
-function shareProduct(pid){const url=`${location.origin}${location.pathname}?product=${pid}`;if(navigator.share)navigator.share({title:'Deal Way',url});else{navigator.clipboard.writeText(url);showToast('copy_link','success')}}
-async function reportAd(pid){if(!user)return showToast('toast_login_first','error');const reason=prompt(currentLang==='ar'?'اكتب سبب البلاغ':'Write report reason');if(!reason)return;await sb.from('reports').insert({product_id:pid,reporter_pi_id:user.uid,reason});showToast('Report sent','success')}
+                if (!response.ok) {
+                    throw new Error('فشل في جلب البيانات من Pi Server');
+                }
 
-async function loadOffers(p){const list=document.getElementById('offers-list'),actions=document.getElementById('offer-actions');list.innerHTML='<small>Loading...</small>';const {data}=await sb.from('offers').select('*').eq('product_id',p.id).order('created_at',{ascending:false});list.innerHTML=data&&data.length?data.map(o=>`<div class="notif-item"><b>${formatCurrency(o.amount)} π</b> - ${escapeHtml(o.buyer_username||'User')} <small>${o.status||'pending'}</small></div>`).join(''):'<small>No offers yet</small>';actions.innerHTML=user&&p.seller_pi_id!==user.uid?`<div style="display:flex;gap:8px;margin-top:10px;"><input id="offerAmount" type="number" class="input-box" placeholder="0.00"><button class="btn btn-primary" onclick="sendOffer(${p.id},'${p.seller_pi_id}')">${t('send_offer')}</button></div>`:''}
-async function sendOffer(pid,sellerId){if(!user)return showToast('toast_login_first','error');const amount=parseFloat(document.getElementById('offerAmount').value||0);if(!amount)return showToast('toast_fill_data','error');await sb.from('offers').insert({product_id:pid,seller_pi_id:sellerId,buyer_pi_id:user.uid,buyer_username:user.username,amount,status:'pending'});addNotification(sellerId,`${user.username} sent an offer: ${amount}π`);showToast('send_offer','success');loadOffers(currentDetailProduct)}
+                // استخراج البيانات
+                const data = await response.json();
+                
+                // إخفاء التحميل وعرض اسم المستخدم بنجاح
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('success-section').style.display = 'block';
+                document.getElementById('username-display').textContent = "@" + data.username;
 
-async function loadRatings(p){const list=document.getElementById('ratings-list'),actions=document.getElementById('rating-actions');const {data}=await sb.from('ratings').select('*').eq('seller_pi_id',p.seller_pi_id).order('created_at',{ascending:false});list.innerHTML=data&&data.length?data.map(r=>`<div class="notif-item"><span style="color:#F59E0B">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</span> ${escapeHtml(r.comment||'')}</div>`).join(''):'<small>No ratings yet</small>';actions.innerHTML=user&&p.seller_pi_id!==user.uid?`<div class="rating-stars" id="rateStars">${[1,2,3,4,5].map(i=>`<i class="fa-regular fa-star" onclick="selectRating(${i})"></i>`).join('')}</div><textarea id="ratingComment" class="input-box" placeholder="Comment"></textarea><button class="btn btn-gold" onclick="submitRating('${p.seller_pi_id}',${p.id})">${t('ratings_title')}</button>`:''}
-let selectedRating=0;function selectRating(n){selectedRating=n;document.querySelectorAll('#rateStars i').forEach((el,i)=>{el.className=i<n?'fa-solid fa-star':'fa-regular fa-star'})}
-async function submitRating(sellerId,pid){if(!user)return showToast('toast_login_first','error');if(!selectedRating)return showToast('toast_fill_data','error');await sb.from('ratings').insert({seller_pi_id:sellerId,product_id:pid,rater_pi_id:user.uid,rater_username:user.username,stars:selectedRating,comment:ratingComment.value});showToast('ratings_title','success');selectedRating=0;loadRatings(currentDetailProduct);loadSellerInfo(currentDetailProduct)}
+            } catch (error) {
+                console.error(error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('pi-login-btn').style.display = 'block';
+                document.getElementById('error-message').style.display = 'block';
+            }
+        }
+    }
 
-function openPromoteOptions(id){currentPromoteProductId=id;document.getElementById('promoteModal').style.display='flex'}function closePromoteModal(){document.getElementById('promoteModal').style.display='none';currentPromoteProductId=null}function triggerPayment(amount,days){if(!currentPromoteProductId)return;const id=currentPromoteProductId;closePromoteModal();promoteProduct(id,amount,days)}
-async function promoteProduct(productId,amount,days){if(!window.Pi)return showToast("Pi Browser Required",'error');try{const paymentData={amount:parseFloat(amount),memo:`Promote Ad: ${productId} (${days} Days)`,metadata:{productId:parseInt(productId)||productId,type:"promotion",days:parseInt(days)}};Pi.createPayment(paymentData,{onReadyForServerApproval:async(paymentId)=>{await fetch(`${API_BASE}/approve`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paymentId})})},onReadyForServerCompletion:async(paymentId,txid)=>{const res=await fetch(`${API_BASE}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paymentId,txid})});const json=await res.json();if(res.ok&&(json.completed||json.success)){showToast("Promotion Active!",'success');await loadAllProducts();openProductDetails(productId)}else showToast("Activation Error",'error')},onCancel:()=>{},onError:()=>showToast("Payment Failed",'error')})}catch(e){showToast("Payment Error",'error')}}
-
-async function checkUnreadMessages(){if(!user)return;const {count}=await sb.from('messages').select('*',{count:'exact',head:true}).eq('receiver_pi_id',user.uid).eq('is_read',false);const badge=document.getElementById('chat-badge');if(count>0){badge.innerText=count>9?'+9':count;badge.classList.remove('hidden')}else badge.classList.add('hidden')}
-function openChatRoom(pid,otherId,pName,uName){if(!user)return showToast('toast_login_first','error');activeChat={pid,otherId};chatTitle.innerText=pName;chatPeer.innerText=uName;chatModal.style.display="flex";msgContainer.innerHTML="";loadMessages();sb.from('messages').update({is_read:true}).eq('product_id',pid).eq('receiver_pi_id',user.uid).eq('sender_pi_id',otherId).then(()=>checkUnreadMessages());sb.channel(`room:${pid}:${otherId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`product_id=eq.${pid}`},payload=>{const m=payload.new;if((m.sender_pi_id==user.uid&&m.receiver_pi_id==otherId)||(m.sender_pi_id==otherId&&m.receiver_pi_id==user.uid))renderMsg(m)}).subscribe()}
-async function loadMessages(){const {data}=await sb.from("messages").select("*").eq("product_id",activeChat.pid).order("created_at",{ascending:true});if(data)data.forEach(m=>{if((m.sender_pi_id==user.uid&&m.receiver_pi_id==activeChat.otherId)||(m.sender_pi_id==activeChat.otherId&&m.receiver_pi_id==user.uid))renderMsg(m)})}
-function renderMsg(m){const div=document.createElement("div");div.className=`bubble ${m.sender_pi_id===user.uid?'me':'other'}`;div.innerText=m.content;msgContainer.appendChild(div);msgContainer.scrollTop=msgContainer.scrollHeight}
-async function sendMsg(){if(!msgInput.value.trim())return;const content=msgInput.value.trim();const {error}=await sb.from("messages").insert({product_id:activeChat.pid,sender_pi_id:user.uid,receiver_pi_id:activeChat.otherId,content});if(error)showToast('toast_send_fail','error');else{addNotification(activeChat.otherId,`New message: ${content}`);msgInput.value=""}}
-function closeChat(){chatModal.style.display="none";activeChat=null;sb.removeAllChannels();checkUnreadMessages()}
-async function loadInbox(){const list=inboxList;list.innerHTML='<div class="empty-state">Loading...</div>';const {data}=await sb.from("messages").select("*, products(name)").or(`sender_pi_id.eq.${user.uid},receiver_pi_id.eq.${user.uid}`).order("created_at",{ascending:false});list.innerHTML="";if(!data||!data.length)return list.innerHTML=`<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-inbox"></i></div><h3>${t('no_messages')}</h3></div>`;const threads=new Map();data.forEach(m=>{const otherId=m.sender_pi_id===user.uid?m.receiver_pi_id:m.sender_pi_id,key=`${m.product_id}_${otherId}`;if(!threads.has(key))threads.set(key,{pid:m.product_id,otherId,pName:m.products?.name||"Item",last:m.content,name:"User",unread:(!m.is_read&&m.receiver_pi_id===user.uid)})});const ids=Array.from(threads.values()).map(t=>t.otherId);if(ids.length){const {data:users}=await sb.from("users").select("pi_id,username").in("pi_id",ids);if(users)users.forEach(u=>threads.forEach(th=>{if(th.otherId===u.pi_id)th.name=u.username}))}threads.forEach(th=>list.innerHTML+=`<div class="inbox-item ${th.unread?'unread':''}" onclick="openChatRoom(${th.pid},'${th.otherId}','${escapeJs(th.pName)}','${escapeJs(th.name)}')"><div class="inbox-avatar">${th.name.charAt(0)}</div><div class="inbox-info"><div class="inbox-name">${th.name} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${th.pName})</span></div><div class="inbox-msg">${escapeHtml(th.last)}</div></div>${th.unread?'<div class="unread-dot"></div>':''}</div>`);checkUnreadMessages()}
-
-window.addEventListener('load',()=>{const params=new URLSearchParams(location.search);const id=params.get('product');if(id){setTimeout(()=>openProductDetails(parseInt(id)),1200)}});
-
-/*
-ملاحظات مهمة لقاعدة البيانات Supabase:
-أضف الأعمدة والجداول التالية لو غير موجودة:
-products: condition text, status text default 'available', main_image_index int default 0, views int default 0
-users: is_verified boolean default false
-offers: id, product_id, seller_pi_id, buyer_pi_id, buyer_username, amount, status, created_at
-ratings: id, seller_pi_id, product_id, rater_pi_id, rater_username, stars, comment, created_at
-reports: id, product_id, reporter_pi_id, reason, created_at
-الإشعارات والمفضلة محفوظة LocalStorage في هذه النسخة ويمكن نقلها لSupabase لاحقاً.
-*/
+    // بمجرد تحميل الصفحة بالكامل، يتم تشغيل الفحص
+    window.onload = checkLoginRedirect;
 </script>
+
 </body>
 </html>
