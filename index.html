@@ -2,465 +2,90 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PiFreelance - منصة العمل الحر المتقدمة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المساعد الذكي - Pi Network</title>
     
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+    <!-- إضافة مكتبة Pi SDK -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <style>
-        :root {
-            --pi-purple: #5c1d7e; 
-            --pi-purple-light: #7b2cbf;
-            --pi-gold: #e2a227; 
-            --bg-light: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-main: #2d3748;
-            --text-muted: #718096;
-            --border-color: #e2e8f0;
-            --danger: #e53e3e;
-            --success: #38a169;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            background-color: var(--bg-light);
-            color: var(--text-main);
-            padding-bottom: 70px; 
-            font-size: 14px;
-        }
-
-        header {
-            background: var(--card-bg);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .logo {
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--pi-purple);
-        }
-
-        .escrow-badge {
-            background-color: rgba(92, 29, 126, 0.05);
-            border: 1px solid var(--pi-purple);
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 12px;
-            color: var(--pi-purple);
-        }
-
-        .app-container {
-            padding: 16px;
-            max-width: 500px; 
-            margin: 0 auto;
-        }
-
-        .app-page { display: none; }
-        .app-page.active { display: block; }
-
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .card-title {
-            font-size: 15px;
-            font-weight: bold;
-            color: var(--pi-purple);
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        button {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 12px;
-            transition: 0.2s;
-        }
-
-        .btn-success { background-color: var(--success); color: white; }
-        .btn-danger { background-color: var(--danger); color: white; }
-        .btn-primary { background-color: var(--pi-purple); color: white; }
-        .btn-gold { background-color: var(--pi-gold); color: #000; }
-        .btn-full { width: 100%; padding: 10px; font-size: 13px; margin-top: 8px; }
-
-        /* شريط البحث والترتيب */
-        .search-filter-box { display: flex; gap: 8px; margin-bottom: 16px; }
-        .search-input { flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; }
-        .sort-select { padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; background: white; }
-
-        /* فورم إضافة مشروع */
-        .form-group {
-            margin-bottom: 12px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: var(--text-main);
-        }
-        .form-control {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 13px;
-            outline: none;
-        }
-        .form-control:focus { border-color: var(--pi-purple); }
-
-        /* المخرجات ثلاثية الأبعاد التفاعلية */
-        #canvas3d-container {
-            width: 100%;
-            height: 180px;
-            background: #1a1a24;
-            border-radius: 8px;
-            margin-top: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-        .canvas-hint {
-            position: absolute;
-            top: 5px; right: 5px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            padding: 2px 6px;
-            font-size: 10px;
-            border-radius: 4px;
-            pointer-events: none;
-        }
-
-        /* الميزانية القائمة على المراحل (Milestones) */
-        .milestone-item {
-            background: var(--bg-light);
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border-left: 4px solid var(--border-color);
-        }
-        .milestone-item.completed { border-left-color: var(--success); }
-        .milestone-meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;}
-
-        /* نظام التقييم الثلاثي */
-        .rating-stars { display: flex; gap: 5px; margin: 8px 0; font-size: 18px; color: #ccc; cursor: pointer;}
-        .rating-stars span.active { color: var(--pi-gold); }
-        .sys-score { font-size: 11px; background: #edf2f7; padding: 6px; border-radius: 4px; margin-top: 5px; color: var(--text-muted); }
-
-        /* القائمة المنسدلة للمهام */
-        .task-item { border-bottom: 1px solid var(--border-color); padding: 12px 0; }
-        .task-header { display: flex; justify-content: space-between; }
-        .task-title { font-weight: 600; }
-        .task-price { color: var(--pi-gold); font-weight: bold; }
-        .task-desc { font-size: 12px; color: var(--text-muted); }
-
-        /* صفحة الملف الشخصي والهيرو */
-        .profile-hero { text-align: center; padding: 16px 0; }
-        .avatar {
-            width: 70px; height: 70px; border-radius: 50%; background: var(--pi-purple); color: white;
-            display: inline-flex; align-items: center; justify-content: center; font-size: 24px;
-            font-weight: bold; margin-bottom: 10px; border: 3px solid var(--pi-gold);
-        }
-
-        /* شريط التنقل السفلي */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; padding: 6px 0; z-index: 1000; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--text-muted); cursor: pointer; background: none; border: none; flex: 1; }
-        .nav-item.active { color: var(--pi-purple); font-weight: bold; }
-    </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">𝝅 PiFreelance</div>
-        <div class="escrow-badge" id="escrowStatus">الضمان النشط: 150 Pi 🔒</div>
-    </header>
-
-    <div class="app-container">
-
-        <div id="page-home" class="app-page active">
-            <div class="search-filter-box">
-                <input type="text" id="searchInput" class="search-input" placeholder="بحث عن مهام (برمجة، 3D...)" onkeyup="filterTasks()">
-                <select id="sortSelect" class="sort-select" onchange="filterTasks()">
-                    <option value="all">كل العروض</option>
-                    <option value="high">الأعلى سعراً</option>
-                    <option value="low">الأقل سعراً</option>
-                </select>
+    <!-- شاشة تسجيل الدخول -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="pi-logo-container">
+                <i class="fab fa-product-hunt"></i>
             </div>
-
-            <div class="card">
-                <div class="card-title">📌 المهام المتاحة بالمجتمع</div>
-                <div id="tasksList">
-                    <div class="task-item" data-price="150" data-title="تصميم واجهة متجر 3D">
-                        <div class="task-header"><span class="task-title">تصميم واجهة متجر 3D احترافي</span><span class="task-price">150 Pi</span></div>
-                        <p class="task-desc">مطلوب مصمم لعمل واجهة تفاعلية وعرض نماذج ثلاثية الأبعاد بـ Three.js.</p>
-                    </div>
-                </div>
-            </div>
+            <h2>مرحباً بك في المساعد الذكي</h2>
+            <p>يجب تسجيل الدخول باستخدام حساب Pi الخاص بك للبدء.</p>
+            <button id="pi-login-btn" class="pi-btn">
+                <i class="fab fa-product-hunt"></i> تسجيل الدخول بواسطة Pi
+            </button>
+            <p id="login-error" class="error-msg"></p>
         </div>
-
-        <div id="page-add-task" class="app-page">
-            <div class="card auth-lock-msg" style="text-align: center; padding: 20px;">
-                <p style="color: var(--danger); font-weight: bold;">🔒 عذراً، يجب تسجيل الدخول أولاً</p>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">يرجى الانتقال لصفحة "حسابي" وتسجيل الدخول عبر Pi SDK لتتمكن من إضافة مشروعك.</p>
-            </div>
-
-            <div class="card auth-unlocked-form" style="display: none;">
-                <div class="card-title">➕ إضافة مشروع / خدمة جديدة</div>
-                <form id="newTaskForm" onsubmit="createNewTask(event)">
-                    <div class="form-group">
-                        <label>عنوان المشروع أو الخدمة:</label>
-                        <input type="text" id="formTaskTitle" class="form-control" placeholder="مثال: مطلوب تعديل فيديو VFX" required>
-                    </div>
-                    <div class="form-group">
-                        <label>الميزانية المطروحة بالـ Pi:</label>
-                        <input type="number" id="formTaskPrice" class="form-control" placeholder="مثال: 200" required>
-                    </div>
-                    <div class="form-group">
-                        <label>تفاصيل وشروط العمل:</label>
-                        <textarea id="formTaskDesc" class="form-control" rows="3" placeholder="اكتب شروطك بوضوح هنا..." required></textarea>
-                    </div>
-                    <button type="submit" class="btn-success btn-full">نشر المشروع في المجتمع فوراً 🚀</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="page-workspace" class="app-page">
-            <div class="card">
-                <div class="card-title">📦 معاينة المخرجات التفاعلية (3D View)</div>
-                <div id="canvas3d-container"><span class="canvas-hint">اسحب لتدوير المجسم 🔄</span></div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">⛓️ مراحل الدفع والتعاقد (Milestones)</div>
-                <div class="milestone-item" id="m1">
-                    <div class="milestone-meta"><strong>المرحلة 1: النموذج الأولي (3D Draft)</strong><span style="color:var(--pi-gold); font-weight:bold;">50 Pi</span></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                        <span style="font-size:11px;" id="m1-status">الحالة: بانتظار المراجعة</span>
-                        <button class="btn-success" onclick="releaseMilestone('m1', 50)">إفراج عن الدفعة</button>
-                    </div>
-                </div>
-                <div class="milestone-item" id="m2">
-                    <div class="milestone-meta"><strong>المرحلة 2: التسليم النهائي والملفات</strong><span style="color:var(--pi-gold); font-weight:bold;">100 Pi</span></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                        <span style="font-size:11px;" id="m2-status">الحالة: معلقة بالضمان</span>
-                        <button class="btn-primary" id="m2-btn" onclick="openRatingModal()">الإفراج النهائي والتقييم</button>
-                    </div>
-                </div>
-            </div>
-            <div class="card" style="text-align: center; border-color: rgba(229,62,62,0.3);">
-                <button class="btn-danger" id="btnDispute" style="width:100%; padding:10px;">⚠️ فتح نزاع وتجميد العملة</button>
-            </div>
-        </div>
-
-        <div id="page-rating" class="app-page">
-            <div class="card" style="text-align: center;">
-                <div class="card-title">🌟 نظام التقييم الثلاثي الموثق</div>
-                <div style="text-align: right; margin-bottom: 12px;">
-                    <label>1. تقييم جودة تسليم العمل الكلي:</label>
-                    <div class="rating-stars" id="userStars">
-                        <span onclick="setStars(1)">★</span><span onclick="setStars(2)">★</span><span onclick="setStars(3)">★</span><span onclick="setStars(4)">★</span><span onclick="setStars(5)">★</span>
-                    </div>
-                </div>
-                <div class="sys-score" style="text-align: right;">
-                    <strong>2. التقييم التلقائي للنظام (System Tracker):</strong>
-                    <p style="margin-top:2px;">⚡ سرعة تسليم المستقل: ممتاز (قبل الوقت بـ 20 ساعة).</p>
-                    <p style="font-weight: bold; color: var(--success); margin-top:3px;">تقييم أداء الخوارزمية: 4.9 / 5.0</p>
-                </div>
-                <button class="btn-success btn-full" onclick="submitTripleRating()">إرسال التقييم وحفظ العقد نهائياً 🎉</button>
-            </div>
-        </div>
-
-        <div id="page-profile" class="app-page">
-            <div class="card profile-hero" id="profileCard" style="display: none;">
-                <div class="avatar" id="userAvatar">?</div>
-                <h3 id="usernameDisplay">جاري التحميل...</h3>
-                <span style="display: inline-block; background: #e2f5ea; color: var(--success); padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-top: 6px; font-weight: bold;">حساب موثق KYC ✓</span>
-            </div>
-            <div class="card" id="loginCard" style="text-align: center; padding: 20px;">
-                <h3>مرحباً بك في PiFreelance</h3>
-                <button class="btn-primary btn-full" id="btnPiLogin">تسجيل الدخول بواسطة Pi Browser 🔑</button>
-            </div>
-        </div>
-
     </div>
 
-    <nav class="bottom-nav">
-        <button class="nav-item active" onclick="switchPage('page-home', this)"><div>🏠</div><div>الرئيسية</div></button>
-        <button class="nav-item" onclick="switchPage('page-add-task', this)"><div>➕</div><div>أضف مشروع</div></button>
-        <button class="nav-item" onclick="switchPage('page-workspace', this)"><div>💼</div><div>مساحة العمل</div></button>
-        <button class="nav-item" onclick="switchPage('page-profile', this)"><div>👤</div><div>حسابي</div></button>
-    </nav>
-
-    <script>
-        // تهيئة الـ Pi SDK
-        Pi.init({ version: "2.0", sandbox: false });
-
-        let userIsAuthenticated = false;
-
-        // دالة تفعيل ميزات الحساب بعد تسجيل الدخول الناجح
-        function unlockUserFeatures(username) {
-            userIsAuthenticated = true;
-            
-            // تحديث صفحة الملف الشخصي
-            document.getElementById('usernameDisplay').innerText = username;
-            document.getElementById('userAvatar').innerText = username.charAt(0).toUpperCase();
-            document.getElementById('loginCard').style.display = 'none';
-            document.getElementById('profileCard').style.display = 'block';
-
-            // فتح وتفعيل واجهة إضافة المشاريع والخدمات لقاعدة البيانات المحلية
-            document.querySelector('.auth-lock-msg').style.display = 'none';
-            document.querySelector('.auth-unlocked-form').style.display = 'block';
-        }
-
-        // معالج تسجيل الدخول
-        document.getElementById('btnPiLogin').addEventListener('click', async () => {
-            try {
-                const authResult = await Pi.authenticate(['username', 'payments'], (p) => console.log(p));
-                if(authResult && authResult.user) {
-                    unlockUserFeatures(authResult.user.username);
-                }
-            } catch (e) {
-                // محاكاة سريعة للـ Localhost فقط إذا لم يكن يفتح عبر Pi Browser لسهولة اختبار الكود
-                alert("بيئة تصفح عادية؛ سيتم تسجيل دخولك بحساب تجريبي لأغراض الاختبار البرمجي.");
-                unlockUserFeatures("Mohamed_Gamal");
-            }
-        });
-
-        // دالة إنشاء وإضافة مشروع جديد ديناميكياً بالقائمة الرئيسية
-        function createNewTask(event) {
-            event.preventDefault();
-            
-            const title = document.getElementById('formTaskTitle').value;
-            const price = document.getElementById('formTaskPrice').value;
-            const desc = document.getElementById('formTaskDesc').value;
-
-            // بناء الهيكل البنائي (DOM) للمشروع الجديد ليطابق الفلترة
-            const tasksList = document.getElementById('tasksList');
-            const taskItem = document.createElement('div');
-            taskItem.className = 'task-item';
-            taskItem.setAttribute('data-price', price);
-            taskItem.setAttribute('data-title', title);
-            
-            taskItem.innerHTML = `
-                <div class="task-header">
-                    <span class="task-title">${title}</span>
-                    <span class="task-price">${price} Pi</span>
+    <!-- الحاوية الرئيسية للشات (مخفية افتراضياً) -->
+    <div id="main-chat-container" class="chat-container" style="display: none;">
+        <!-- الرأس -->
+        <header class="chat-header">
+            <div class="header-left">
+                <div class="ai-icon-container">
+                    <i class="fas fa-microchip"></i>
                 </div>
-                <p class="task-desc">${desc}</p>
-            `;
+                <h2>المساعد <span>Pro</span></h2>
+            </div>
+            
+            <div class="header-right">
+                <!-- عرض اسم المستخدم بعد تسجيل الدخول -->
+                <span id="username-display" class="pi-username"></span>
+                
+                <!-- تخصيص الشخصية -->
+                <select id="persona-select" title="اختر شخصية المساعد">
+                    <option value="مساعد ذكي عام، تجيب بوضوح واختصار.">🤖 مساعد عام</option>
+                    <option value="أنت مبرمج خبير ومهندس برمجيات، تشرح الأكواد بالتفصيل.">💻 مبرمج خبير</option>
+                    <option value="أنت كاتب محتوى مبدع، تكتب مقالات جذابة بأسلوب تسويقي.">✍️ كاتب محتوى</option>
+                </select>
+                <!-- الأزرار -->
+                <button id="export-btn" title="تصدير المحادثة"><i class="fas fa-download"></i></button>
+                <button id="theme-toggle" title="الوضع الليلي/النهاري"><i class="fas fa-moon"></i></button>
+            </div>
+        </header>
 
-            // إدراج العنصر الجديد في أعلى القائمة
-            tasksList.insertBefore(taskItem, tasksList.firstChild);
+        <!-- منطقة الرسائل -->
+        <main class="chat-box" id="chat-box">
+            <!-- اقتراحات ذكية تظهر في البداية -->
+            <div class="suggestions-container" id="suggestions">
+                <h3>كيف يمكنني مساعدتك اليوم؟ ✨</h3>
+                <div class="suggestions-grid">
+                    <button class="suggestion-btn" onclick="sendSuggestion('اكتب لي كود HTML و CSS لآلة حاسبة')">🧮 كود لآلة حاسبة</button>
+                    <button class="suggestion-btn" onclick="sendSuggestion('اشرح لي مشروع Pi Network باختصار')">🟣 اشرح Pi Network</button>
+                    <button class="suggestion-btn" onclick="sendSuggestion('كيف أتعلم لغة بايثون من الصفر؟')">🐍 تعلم بايثون</button>
+                    <button class="suggestion-btn" onclick="sendSuggestion('اكتب لي قصة قصيرة ملهمة عن النجاح')">📖 قصة قصيرة</button>
+                </div>
+            </div>
+        </main>
 
-            // تصفير الخانات والعودة للرئيسية لمعاينة الإضافة
-            document.getElementById('newTaskForm').reset();
-            alert('تم نشر مشروعك بنجاح في مجتمع Pi وجاري استقبال عروض المستقلين!');
-            switchPage('page-home', document.querySelectorAll('.nav-item')[0]);
-        }
+        <!-- منطقة الإدخال -->
+        <div class="input-container">
+            <div class="input-box">
+                <textarea id="user-input" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
+                <!-- زر إيقاف التوليد -->
+                <button id="stop-btn" title="إيقاف التوليد" style="display: none;"><i class="fas fa-stop"></i></button>
+                <button id="send-btn" title="إرسال"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <p class="disclaimer">يعمل بواسطة Google AI | متصل بشبكة Pi Network</p>
+        </div>
+    </div>
 
-        // محرك الـ 3D التفاعلي (Three.js)
-        let scene, camera, renderer, cube;
-        function init3DViewer() {
-            const container = document.getElementById('canvas3d-container');
-            scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a24);
-            camera = new THREE.PerspectiveCamera(50, container.clientWidth / 180, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, 180); container.appendChild(renderer.domElement);
-
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshStandardMaterial({ color: 0x7b2cbf, roughness: 0.4, metalness: 0.3 });
-            cube = new THREE.Mesh(geometry, material); scene.add(cube);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const dirLight = new THREE.DirectionalLight(0xe2a227, 0.8); dirLight.position.set(5, 5, 5); scene.add(dirLight);
-            camera.position.z = 5;
-
-            let isDragging = false, previousMousePosition = { x: 0, y: 0 };
-            container.addEventListener('pointerdown', () => isDragging = true);
-            container.addEventListener('pointermove', (e) => {
-                const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
-                if (isDragging && cube) { cube.rotation.y += deltaMove.x * 0.01; cube.rotation.x += deltaMove.y * 0.01; }
-                previousMousePosition = { x: e.offsetX, y: e.offsetY };
-            });
-            window.addEventListener('pointerup', () => isDragging = false);
-
-            function animate() { requestAnimationFrame(animate); if(!isDragging) { cube.rotation.y += 0.005; } renderer.render(scene, camera); }
-            animate();
-        }
-        window.onload = () => { init3DViewer(); };
-
-        // نظام التنقل بين الصفحات
-        function switchPage(pageId, element) {
-            document.querySelectorAll('.app-page').forEach(page => page.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
-            if(element) element.classList.add('active');
-        }
-
-        // محرك البحث والفلترة
-        function filterTasks() {
-            const searchVal = document.getElementById('searchInput').value.toLowerCase();
-            const sortVal = document.getElementById('sortSelect').value;
-            const tasksList = document.getElementById('tasksList');
-            const items = Array.from(tasksList.getElementsByClassName('task-item'));
-
-            items.forEach(item => {
-                const title = item.getAttribute('data-title').toLowerCase();
-                item.style.display = title.includes(searchVal) ? 'block' : 'none';
-            });
-
-            if (sortVal === 'high') items.sort((a, b) => b.getAttribute('data-price') - a.getAttribute('data-price'));
-            if (sortVal === 'low') items.sort((a, b) => a.getAttribute('data-price') - b.getAttribute('data-price'));
-            items.forEach(item => tasksList.appendChild(item));
-        }
-
-        // محاكاة تسليم المراحل والتقييم
-        let totalEscrow = 150;
-        function releaseMilestone(id, amount) {
-            if(confirm(`هل تريد الإفراج عن دفعة بقيمة ${amount} Pi؟`)) {
-                totalEscrow -= amount; document.getElementById('escrowStatus').innerText = `الضمان النشط: ${totalEscrow} Pi 🔒`;
-                document.getElementById(`${id}-status`).innerText = "الحالة: تم الاستلام ✓"; event.target.disabled = true;
-            }
-        }
-        function openRatingModal() { switchPage('page-rating'); }
-        let chosenStars = 0;
-        function setStars(count) {
-            chosenStars = count;
-            const stars = document.getElementById('userStars').getElementsByTagName('span');
-            for(let i=0; i<5; i++) stars[i].classList.toggle('active', i < count);
-        }
-        function submitTripleRating() {
-            if(chosenStars === 0) return alert('الرجاء اختيار نجوم التقييم.');
-            alert('تم إنهاء العقد الإفراج النهائي بنجاح!');
-            document.getElementById('m2-status').innerText = "الحالة: تم الاستلام ✓";
-            document.getElementById('escrowStatus').innerText = `الضمان النشط: 0 Pi 🔓`;
-            switchPage('page-workspace', document.querySelectorAll('.nav-item')[2]);
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
