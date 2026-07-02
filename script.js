@@ -2,7 +2,6 @@
 // 1. إعدادات Pi Network (تسجيل الدخول)
 // ==========================================
 
-// تهيئة Pi SDK (sandbox: false للإنتاج)
 Pi.init({ version: "2.0", sandbox: false });
 
 const loginScreen = document.getElementById('login-screen');
@@ -11,61 +10,52 @@ const piLoginBtn = document.getElementById('pi-login-btn');
 const usernameDisplay = document.getElementById('username-display');
 const loginError = document.getElementById('login-error');
 
-// دالة لمعالجة الدفع غير المكتمل (مطلوبة بواسطة Pi SDK)
-function onIncompletePaymentFound(payment) {
-    console.log("تم العثور على عملية دفع غير مكتملة:", payment);
-}
+function onIncompletePaymentFound(payment) { console.log("Payment found:", payment); }
 
-// دالة تسجيل الدخول
 async function authenticatePiUser() {
     piLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تسجيل الدخول...';
     piLoginBtn.disabled = true;
     loginError.style.display = 'none';
 
     try {
-        // طلب صلاحية قراءة اسم المستخدم
         const scopes = ['username'];
         const authResults = await Pi.authenticate(scopes, onIncompletePaymentFound);
-        
-        // استخراج اسم المستخدم
         const piUsername = authResults.user.username;
         
-        // الانتقال إلى الشات
         loginScreen.style.display = 'none';
         mainChatContainer.style.display = 'flex';
-        
-        // عرض اسم المستخدم في الرأس
         usernameDisplay.innerHTML = `<i class="fas fa-user-circle"></i> @${piUsername}`;
 
-        // يمكننا إضافة رسالة ترحيبية من البوت باسم المستخدم
-        conversationHistory.push({ 
-            role: "user", 
-            parts: [{ text: `اسمي هو ${piUsername}، استخدم هذا الاسم عند التحدث معي إذا احتجت لذلك.` }] 
-        });
-        conversationHistory.push({ 
-            role: "model", 
-            parts: [{ text: `أهلاً بك يا ${piUsername}! كيف يمكنني مساعدتك اليوم؟` }] 
-        });
+        conversationHistory.push({ role: "user", parts: [{ text: `اسمي هو ${piUsername}` }] });
+        conversationHistory.push({ role: "model", parts: [{ text: `أهلاً بك يا ${piUsername}! كيف يمكنني مساعدتك؟` }] });
 
     } catch (error) {
-        console.error("خطأ في تسجيل دخول Pi:", error);
+        console.error("خطأ Pi:", error);
         piLoginBtn.innerHTML = '<i class="fab fa-product-hunt"></i> تسجيل الدخول بواسطة Pi';
         piLoginBtn.disabled = false;
-        loginError.innerText = "فشل تسجيل الدخول. تأكد من فتح التطبيق عبر متصفح Pi Browser.";
+        
+        // ✨ زر تخطي للتجربة على كروم العادي لكشف الخطأ
+        loginError.innerHTML = `فشل تسجيل دخول Pi. <br><button onclick="bypassLogin()" style="margin-top:10px; background:none; border:none; color:#3b82f6; text-decoration:underline; cursor:pointer; font-weight:bold;">تخطي لتجربة الذكاء الاصطناعي (للمطور)</button>`;
         loginError.style.display = 'block';
     }
 }
 
-// ربط زر الدخول بالدالة
 piLoginBtn.addEventListener('click', authenticatePiUser);
 
+// دالة التخطي السريعة للتطوير
+window.bypassLogin = function() {
+    loginScreen.style.display = 'none';
+    mainChatContainer.style.display = 'flex';
+    usernameDisplay.innerHTML = `<i class="fas fa-user-circle"></i> @تجريبي`;
+}
 
 // ==========================================
-// 2. إعدادات الذكاء الاصطناعي والمحادثة
+// 2. إعدادات الذكاء الاصطناعي
 // ==========================================
 
-const API_KEY = 'AQ.AQ.Ab8RN6LhdRWfBgkcse5o_5kxakAgk8af9zs-xFEfONv3IXrNiQ'; // ضع مفتاح Gemini هنا
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${API_KEY}`;
+const API_KEY = 'AQ.Ab8RN6LhdRWfBgkcse5o_5kxakAgk8af9zs-xFEfONv3IXrNiQ'; 
+// تم تعديل النموذج إلى النسخة المستقرة 1.5 لتجنب خطأ 404
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${API_KEY}`;
 
 marked.setOptions({
     highlight: function(code, lang) {
@@ -92,13 +82,8 @@ if (localStorage.getItem('theme') === 'dark') {
 }
 themeToggleBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark-mode');
-    if (document.body.classList.contains('dark-mode')) {
-        localStorage.setItem('theme', 'dark');
-        themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
-    } else {
-        localStorage.setItem('theme', 'light');
-        themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
-    }
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+    themeToggleBtn.innerHTML = document.body.classList.contains('dark-mode') ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
 });
 
 function createMessageElement(sender, initialText = "") {
@@ -124,8 +109,8 @@ async function fetchAIResponseStream(userText) {
     
     conversationHistory.push({ role: "user", parts: [{ text: userText }] });
     const systemInstruction = personaSelect.value;
-
     let fullResponseText = "";
+    
     currentAbortController = new AbortController();
     stopBtn.style.display = 'flex'; 
     sendBtn.classList.add('pulse'); 
@@ -141,7 +126,11 @@ async function fetchAIResponseStream(userText) {
             })
         });
 
-        if (!response.ok) throw new Error("API Error");
+        // ✨ التعديل الأهم: قراءة الخطأ وعرضه لك!
+        if (!response.ok) {
+            const errorDetails = await response.text();
+            throw new Error(`خطأ ${response.status}: ${errorDetails}`);
+        }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
@@ -175,10 +164,11 @@ async function fetchAIResponseStream(userText) {
 
     } catch (error) {
         if (error.name === 'AbortError') {
-            botTextElement.innerHTML += '<br><span style="color:#ef4444; font-size:12px;">[تم إيقاف التوليد بواسطة المستخدم 🛑]</span>';
+            botTextElement.innerHTML += '<br><span style="color:#ef4444; font-size:12px;">[تم الإيقاف]</span>';
             conversationHistory.push({ role: "model", parts: [{ text: fullResponseText }] });
         } else {
-            botTextElement.innerHTML = "⚠️ عذراً، حدث خطأ في الاتصال.";
+            // ✨ سيتم طباعة رسالة الخطأ هنا باللون الأحمر لتصويرها لي
+            botTextElement.innerHTML = `<span style="color:#ef4444;">⚠️ التفاصيل:<br><code style="font-size:12px; background:#fee2e2; padding:5px; border-radius:5px; display:block; text-align:left;">${error.message}</code></span>`;
             conversationHistory.pop(); 
         }
     } finally {
@@ -198,7 +188,7 @@ function addCopyButtons(container) {
         button.addEventListener('click', () => {
             const codeText = block.querySelector('code').innerText;
             navigator.clipboard.writeText(codeText).then(() => {
-                button.innerHTML = '<i class="fas fa-check"></i> تم';
+                button.innerHTML = '<i class="fas fa-check"></i>';
                 button.style.backgroundColor = '#10a37f';
                 setTimeout(() => {
                     button.innerHTML = '<i class="far fa-copy"></i> نسخ';
@@ -214,47 +204,33 @@ function handleSend() {
     const text = userInput.value.trim();
     if (text === '') return;
     if (suggestions) suggestions.style.display = 'none'; 
-
     createMessageElement('user', text);
     userInput.value = ''; 
     userInput.style.height = 'auto'; 
     fetchAIResponseStream(text);
 }
 
-function sendSuggestion(text) {
-    userInput.value = text;
-    handleSend();
-}
+function sendSuggestion(text) { userInput.value = text; handleSend(); }
 
-stopBtn.addEventListener('click', () => {
-    if (currentAbortController) currentAbortController.abort();
-});
+stopBtn.addEventListener('click', () => { if (currentAbortController) currentAbortController.abort(); });
 
 document.getElementById('export-btn').addEventListener('click', () => {
-    if(conversationHistory.length <= 2) return alert("المحادثة فارغة!"); // نتجاهل رسائل التهيئة
     let exportText = "--- سجل محادثة المساعد الذكي ---\n\n";
     conversationHistory.forEach(msg => {
-        // تجاهل رسائل التهيئة المخفية الخاصة باسم المستخدم
         if(msg.parts[0].text.includes('اسمي هو') && msg.role === 'user') return;
         if(msg.parts[0].text.includes('أهلاً بك يا') && msg.role === 'model') return;
-
         const role = msg.role === 'user' ? "أنت" : "المساعد الذكي";
         exportText += `${role}:\n${msg.parts[0].text}\n\n------------------------\n\n`;
     });
     const blob = new Blob([exportText], { type: "text/plain;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Chat_Export.txt";
+    link.download = "Chat.txt";
     link.click();
 });
 
 sendBtn.addEventListener('click', handleSend);
-userInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-});
-userInput.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
-});
+userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }});
+userInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; });
 
 function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
