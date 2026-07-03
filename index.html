@@ -16,16 +16,16 @@
 
     <style>
         /* ==========================================
-           1. المتغيرات والأساسيات (ألوان أرجواني وأصفر)
+           1. المتغيرات والأساسيات (أرجواني وأصفر)
            ========================================== */
         :root {
-            --bg-main: #1e1030; /* أرجواني داكن للخلفية */
-            --bg-card: #2d1947; /* أرجواني أفتح للبطاقات */
-            --bg-glass: rgba(45, 25, 71, 0.85); /* أرجواني شفاف */
+            --bg-main: #1e1030;
+            --bg-card: #2d1947;
+            --bg-glass: rgba(45, 25, 71, 0.85);
             --text-main: #d8cce8;
             --text-light: #ffffff;
             --text-muted: #a693c4;
-            --primary-yellow: #fdd835; /* أصفر فاقع */
+            --primary-yellow: #fdd835;
             --primary-yellow-hover: #fbc02d;
             --success: #00e676;
             --danger: #ff1744;
@@ -47,7 +47,7 @@
         .container { width: 90%; max-width: 1000px; margin: 0 auto; }
 
         /* ==========================================
-           2. الرأس (Header) وشريط التنقل العلوي
+           2. الرأس (Header) والتنقل
            ========================================== */
         header {
             background-color: var(--bg-glass);
@@ -59,11 +59,7 @@
             z-index: 100;
         }
 
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .navbar { display: flex; justify-content: space-between; align-items: center; }
 
         .logo {
             font-size: 24px;
@@ -73,297 +69,136 @@
             align-items: center;
             gap: 10px;
         }
+        .logo i, .logo span { color: var(--primary-yellow); }
 
-        .logo i { color: var(--primary-yellow); }
-        .logo span { color: var(--primary-yellow); }
-
-        .desktop-nav {
-            display: none;
-            gap: 20px;
-        }
-
+        .desktop-nav { display: none; gap: 20px; }
         .desktop-nav button {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-family: 'Cairo';
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
+            background: none; border: none; color: var(--text-muted);
+            font-family: 'Cairo'; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: var(--transition);
         }
-
-        .desktop-nav button:hover, .desktop-nav button.active {
-            color: var(--primary-yellow);
-        }
+        .desktop-nav button:hover, .desktop-nav button.active { color: var(--primary-yellow); }
 
         /* ==========================================
-           3. الأزرار العامة
+           3. الأزرار
            ========================================== */
         .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: var(--transition);
-            border: none;
-            font-family: 'Cairo', sans-serif;
-            font-size: 15px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            padding: 12px 24px; border-radius: 8px; font-weight: 700;
+            cursor: pointer; transition: var(--transition); border: none;
+            font-family: 'Cairo', sans-serif; font-size: 15px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
         }
-
         .btn-primary { background-color: var(--primary-yellow); color: var(--bg-main); }
         .btn-primary:hover { background-color: var(--primary-yellow-hover); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(253, 216, 53, 0.3); }
-
-        .btn-danger { background-color: var(--danger); color: white; }
-        .btn-danger:hover { background-color: #d50000; transform: translateY(-2px); }
-
         .btn-outline { background-color: transparent; border: 1px solid var(--primary-yellow); color: var(--primary-yellow); }
         .btn-outline:hover { background-color: rgba(253, 216, 53, 0.1); }
-
         .btn-full { width: 100%; margin-top: 15px; }
 
         /* ==========================================
-           4. نظام الصفحات (Tabs)
+           4. الصفحات والبطاقات
            ========================================== */
-        .page {
-            display: none;
-            animation: fadeIn 0.4s ease-in-out;
-            padding-top: 30px;
-        }
+        .page { display: none; animation: fadeIn 0.4s ease-in-out; padding-top: 30px; }
         .page.active { display: block; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .section-header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
+        .section-header { margin-bottom: 30px; text-align: center; }
+        .section-header h2 { font-size: 28px; color: var(--text-light); }
+        .section-header p { color: var(--text-muted); font-size: 15px; margin-top: 5px; }
 
-        .section-header h2 {
-            font-size: 28px;
-            color: var(--text-light);
-        }
-        .section-header p {
-            color: var(--text-muted);
-            font-size: 15px;
-            margin-top: 5px;
-        }
-
-        /* ==========================================
-           5. البطاقات (الاستكشاف)
-           ========================================== */
-        .projects-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 25px;
-        }
+        .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
 
         .card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            transition: var(--transition);
-            display: flex;
-            flex-direction: column;
+            background-color: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; overflow: hidden; transition: var(--transition);
+            display: flex; flex-direction: column;
         }
-
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary-yellow);
-            box-shadow: var(--shadow);
-        }
-
-        .card-img-container {
-            position: relative;
-            width: 100%;
-            height: 200px;
-        }
-
-        .card-main-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
+        .card:hover { transform: translateY(-5px); border-color: var(--primary-yellow); box-shadow: var(--shadow); }
+        .card-img-container { position: relative; width: 100%; height: 200px; }
+        .card-main-img { width: 100%; height: 100%; object-fit: cover; }
         .bounty-tag {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            color: var(--primary-yellow);
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            border: 1px solid var(--primary-yellow);
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            position: absolute; top: 15px; left: 15px; background-color: rgba(0, 0, 0, 0.7);
+            color: var(--primary-yellow); padding: 6px 12px; border-radius: 8px; font-weight: bold;
+            border: 1px solid var(--primary-yellow); display: flex; align-items: center; gap: 5px;
         }
-
         .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
         .card h3 { color: var(--text-light); margin-bottom: 10px; font-size: 20px; }
         .card p { font-size: 14px; margin-bottom: 20px; color: var(--text-muted); flex-grow: 1; }
 
         /* ==========================================
-           6. النماذج (Forms)
+           5. النماذج ورفع الملفات
            ========================================== */
         .form-card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 600px;
-            margin: 0 auto;
-            box-shadow: var(--shadow);
+            background-color: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: var(--shadow);
         }
-
         .form-group { margin-bottom: 20px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
+        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--text-main); }
         .form-control {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--bg-main);
-            border: 1px solid var(--border);
-            color: var(--text-light);
-            border-radius: 8px;
-            font-family: 'Cairo', sans-serif;
-            font-size: 15px;
-            transition: var(--transition);
+            width: 100%; padding: 14px; background-color: var(--bg-main); border: 1px solid var(--border);
+            color: var(--text-light); border-radius: 8px; font-family: 'Cairo', sans-serif; font-size: 15px;
         }
+        .form-control:focus { outline: none; border-color: var(--primary-yellow); box-shadow: 0 0 0 3px rgba(253, 216, 53, 0.1); }
 
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-yellow);
-            box-shadow: 0 0 0 3px rgba(253, 216, 53, 0.1);
-        }
-
-        /* تنسيق رفع الملفات */
-        .file-upload-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-        .file-upload-wrapper input[type="file"] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-upload-wrapper input[type="file"] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
         .file-upload-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
-            padding: 14px;
-            background-color: rgba(255,255,255,0.05);
-            border: 1px dashed var(--text-muted);
-            border-radius: 8px;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: var(--transition);
+            display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px;
+            background-color: rgba(255,255,255,0.05); border: 1px dashed var(--text-muted); border-radius: 8px;
+            color: var(--text-muted); cursor: pointer; transition: var(--transition);
         }
-        .file-upload-wrapper:hover .file-upload-btn {
-            border-color: var(--primary-yellow);
-            color: var(--primary-yellow);
-            background-color: rgba(253, 216, 53, 0.05);
-        }
+        .file-upload-wrapper:hover .file-upload-btn { border-color: var(--primary-yellow); color: var(--primary-yellow); }
 
         /* ==========================================
-           7. شريط التنقل السفلي (للموبايل)
+           6. لوحة تحكم المطور (جديد)
+           ========================================== */
+        .dashboard-container { max-width: 800px; margin: 0 auto; }
+        .dashboard-section { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 30px; }
+        .dashboard-section h3 { color: var(--primary-yellow); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        .report-item {
+            background-color: var(--bg-main); border-radius: 8px; padding: 15px; margin-bottom: 15px;
+            border-right: 4px solid var(--primary-yellow); display: flex; gap: 15px; align-items: flex-start;
+        }
+        .report-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; }
+        .report-content { flex-grow: 1; }
+        .report-content h4 { color: var(--text-light); margin-bottom: 5px; font-size: 16px; }
+        .report-content p { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4; }
+        .report-meta { font-size: 12px; color: var(--primary-yellow); background: rgba(253,216,53,0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;}
+        
+        .empty-state { text-align: center; color: var(--text-muted); padding: 30px; }
+        
+        .auth-hidden { display: none !important; }
+
+        /* ==========================================
+           7. شريط التنقل السفلي والاشعارات
            ========================================== */
         .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background-color: var(--bg-glass);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 1000;
+            position: fixed; bottom: 0; left: 0; right: 0; height: 70px;
+            background-color: var(--bg-glass); backdrop-filter: blur(10px); border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
         }
-
         .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-family: 'Cairo', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            width: 33.33%;
-            height: 100%;
-            transition: var(--transition);
-            gap: 5px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: var(--text-muted); background: none; border: none; cursor: pointer;
+            font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 600;
+            flex: 1; height: 100%; transition: var(--transition); gap: 5px;
         }
-
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--primary-yellow); }
 
-        /* ==========================================
-           8. الإشعارات (Toast)
-           ========================================== */
         .toast-container {
-            position: fixed;
-            bottom: 90px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 90%;
-            max-width: 400px;
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px;
         }
-
         .toast {
-            background-color: var(--bg-card);
-            border-left: 4px solid var(--primary-yellow);
-            color: var(--text-light);
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: slideUp 0.3s ease, fadeOut 0.5s ease 3s forwards;
+            background-color: var(--bg-card); border-left: 4px solid var(--primary-yellow);
+            color: var(--text-light); padding: 15px 25px; border-radius: 8px; box-shadow: var(--shadow);
+            display: flex; align-items: center; gap: 10px; animation: slideUp 0.3s ease, fadeOut 0.5s ease 3s forwards;
         }
 
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes fadeOut {
-            to { opacity: 0; visibility: hidden; }
-        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
 
         @media (min-width: 768px) {
             .bottom-nav { display: none; }
@@ -386,10 +221,12 @@
             <div class="desktop-nav">
                 <button class="active" onclick="switchPage('pageExplore', this, 'navExplore')"><i class="fa-solid fa-compass"></i> استكشاف</button>
                 <button onclick="switchPage('pageUpload', this, 'navUpload')"><i class="fa-solid fa-cloud-arrow-up"></i> رفع مشروع</button>
-                <button onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> الإبلاغ عن خطأ</button>
+                <button onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> إبلاغ</button>
+                <!-- يظهر فقط بعد تسجيل الدخول -->
+                <button id="navDashboardDesktop" class="auth-hidden" onclick="switchPage('pageDashboard', this, 'navDashboardMobile')"><i class="fa-solid fa-chart-line"></i> لوحتي</button>
             </div>
 
-            <!-- زر تسجيل الدخول باستخدام Pi SDK -->
+            <!-- زر تسجيل الدخول -->
             <button class="btn btn-outline" id="btnConnectPi">
                 <i class="fa-brands fa-pied-piper-alt"></i> Pi Login
             </button>
@@ -403,14 +240,12 @@
         <div id="pageExplore" class="page active">
             <div class="section-header">
                 <h2>برامج مكافآت الثغرات النشطة</h2>
-                <p>ابحث عن الثغرات، أبلغ عنها، واكسب عملات Pi بأمان.</p>
+                <p>ابحث عن الأخطاء، أبلغ عنها، واكسب عملات Pi.</p>
             </div>
-            <div class="projects-grid" id="projectsGrid">
-                <!-- يتم حقن المشاريع هنا بواسطة الجافاسكربت -->
-            </div>
+            <div class="projects-grid" id="projectsGrid"></div>
         </div>
 
-        <!-- 2. صفحة المطورين (رفع مشروع) -->
+        <!-- 2. صفحة رفع مشروع -->
         <div id="pageUpload" class="page">
             <div class="section-header">
                 <h2>بوابة المطورين</h2>
@@ -441,12 +276,12 @@
                         <label>نطاق الفحص (Scope & Rules)</label>
                         <textarea class="form-control" id="projDesc" rows="4" required placeholder="حدد ما هو مسموح وما هو ممنوع أثناء الفحص..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-shield-halved"></i> نشر برنامج المكافآت</button>
+                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-shield-halved"></i> نشر المشروع</button>
                 </form>
             </div>
         </div>
 
-        <!-- 3. صفحة الإبلاغ المبسطة (رفع الثغرة) -->
+        <!-- 3. صفحة الإبلاغ -->
         <div id="pageReport" class="page">
             <div class="section-header">
                 <h2>اكتشاف الثغرات والأخطاء</h2>
@@ -454,6 +289,10 @@
             </div>
             <div class="form-card">
                 <form id="reportForm">
+                    <div class="form-group">
+                        <label>المشروع المستهدف</label>
+                        <select class="form-control" id="reportTarget" required></select>
+                    </div>
                     <div class="form-group">
                         <label>صورة للثغرة أو الخطأ</label>
                         <div class="file-upload-wrapper">
@@ -463,10 +302,10 @@
                     </div>
                     <div class="form-group">
                         <label>وصف الثغرة أو الخطأ</label>
-                        <textarea class="form-control" id="bugDescription" rows="5" required placeholder="اشرح المشكلة بالتفصيل وكيفية الوصول إليها..."></textarea>
+                        <textarea class="form-control" id="bugDescription" rows="5" required placeholder="اشرح المشكلة وكيفية الوصول إليها..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label>عنوان محفظة Pi الخاصة بك (لتلقي المكافأة)</label>
+                        <label>عنوان محفظة Pi الخاصة بك</label>
                         <input type="text" class="form-control" id="piAddress" required placeholder="GABCD...1234">
                     </div>
                     <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-paper-plane"></i> إرسال التقرير</button>
@@ -474,232 +313,228 @@
             </div>
         </div>
 
+        <!-- 4. لوحة تحكم المطور (Dashboard) -->
+        <div id="pageDashboard" class="page">
+            <div class="section-header">
+                <h2>لوحة تحكم المطور</h2>
+                <p>أدر مشاريعك وراجع تقارير الثغرات الواردة</p>
+            </div>
+            
+            <div class="dashboard-container">
+                <div class="dashboard-section">
+                    <h3><i class="fa-solid fa-list-check"></i> مشاريعي المنشورة</h3>
+                    <div id="myProjectsList"></div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3><i class="fa-solid fa-shield-virus"></i> التقارير الواردة</h3>
+                    <div id="incomingReportsList"></div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <!-- شريط التنقل السفلي (للموبايل فقط) -->
+    <!-- شريط التنقل السفلي للموبايل -->
     <nav class="bottom-nav">
-        <button class="nav-item active" id="navExplore" onclick="switchPage('pageExplore', this, 'navExplore')">
-            <i class="fa-solid fa-compass"></i> الاستكشاف
-        </button>
-        <button class="nav-item" id="navUpload" onclick="switchPage('pageUpload', this, 'navUpload')">
-            <i class="fa-solid fa-cloud-arrow-up"></i> رفع مشروع
-        </button>
-        <button class="nav-item" id="navReport" onclick="switchPage('pageReport', this, 'navReport')">
-            <i class="fa-solid fa-bug"></i> الإبلاغ
-        </button>
+        <button class="nav-item active" id="navExplore" onclick="switchPage('pageExplore', this, 'navExplore')"><i class="fa-solid fa-compass"></i> استكشاف</button>
+        <button class="nav-item" id="navUpload" onclick="switchPage('pageUpload', this, 'navUpload')"><i class="fa-solid fa-cloud-arrow-up"></i> مشروع</button>
+        <button class="nav-item" id="navReport" onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> إبلاغ</button>
+        <button class="nav-item auth-hidden" id="navDashboardMobile" onclick="switchPage('pageDashboard', this, 'navDashboardDesktop')"><i class="fa-solid fa-chart-line"></i> لوحتي</button>
     </nav>
 
     <!-- حاوية الإشعارات -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ==========================================
-        // 1. تهيئة Pi SDK و برمجة زر تسجيل الدخول
-        // ==========================================
+        // المتغيرات العامة
+        let currentUser = null; // سيتم تعيينه عند تسجيل الدخول
         
-        // تفعيل SDK (مع إيقاف Sandbox كما طلبت)
-        try {
-            Pi.init({ version: "2.0", sandbox: false });
-        } catch (e) {
-            console.warn("تنبيه: يجب فتح الموقع داخل Pi Browser ليعمل الـ SDK بشكل كامل.", e);
+        let projects = JSON.parse(localStorage.getItem('piProjects')) || [];
+        let reports = JSON.parse(localStorage.getItem('piReports')) || [];
+
+        // مشاريع تجريبية إذا كانت القاعدة فارغة
+        if(projects.length === 0) {
+            projects = [
+                { id: 1, owner: 'Admin', name: 'منصة DealWay التجارية', url: '#', bounty: 150, mainImg: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&auto=format&fit=crop&q=60', desc: 'موقع تجاري. نبحث عن ثغرات الدفع وتجاوز الصلاحيات.' },
+                { id: 2, owner: 'TestDeveloper', name: 'تطبيق PiChat', url: '#', bounty: 300, mainImg: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&auto=format&fit=crop&q=60', desc: 'تطبيق دردشة لا مركزي. مسموح بجميع الفحوصات عدا الـ DDoS.' }
+            ];
+            localStorage.setItem('piProjects', JSON.stringify(projects));
         }
 
+        // 1. تهيئة Pi SDK وتسجيل الدخول
+        try { Pi.init({ version: "2.0", sandbox: false }); } catch(e) { console.log("تأكد من استخدام متصفح Pi"); }
+
         const btnConnectPi = document.getElementById('btnConnectPi');
-        
         btnConnectPi.addEventListener('click', async function() {
-            if(this.classList.contains('connected')) return; // لمنع الدخول المتكرر
+            if(currentUser) return;
             
-            // تغيير شكل الزر لحالة التحميل
-            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الدخول...';
+            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري...';
             
             try {
-                // طلب الصلاحيات (الاسم فقط)
                 const scopes = ['username'];
-                function onIncompletePaymentFound(payment) {
-                    // دالة مطلوبة من Pi SDK لمعالجة المدفوعات غير المكتملة
-                    console.log("Incomplete payment found", payment);
-                }
-
-                // تنفيذ تسجيل الدخول الفعلي
-                const authResults = await Pi.authenticate(scopes, onIncompletePaymentFound);
-                const username = authResults.user.username;
-
-                // تحديث الواجهة بعد النجاح
-                this.innerHTML = `<i class="fa-solid fa-user"></i> ${username}`;
-                this.style.backgroundColor = "var(--primary-yellow)";
-                this.style.color = "var(--bg-main)";
-                this.style.borderColor = "var(--primary-yellow)";
-                this.classList.add('connected');
-                
-                showToast(`أهلاً بك يا ${username}! تمت المصادقة بنجاح.`, 'success');
-
+                const authResults = await Pi.authenticate(scopes, (p) => { console.log(p) });
+                loginUser(authResults.user.username);
             } catch (error) {
-                console.error("فشل تسجيل الدخول:", error);
-                showToast('حدث خطأ أثناء الاتصال بشبكة Pi. تأكد أنك تستخدم Pi Browser.', 'danger');
-                
-                // إعادة الزر لشكله الأصلي بعد الفشل
-                this.innerHTML = '<i class="fa-brands fa-pied-piper-alt"></i> Pi Login';
+                // تسجيل دخول تجريبي إذا فشل الـ SDK (للتجربة خارج متصفح بي)
+                showToast('لم يتم اكتشاف Pi Browser.. تم تفعيل حساب المطور التجريبي.', 'danger');
+                loginUser('TestDeveloper');
             }
         });
 
+        function loginUser(username) {
+            currentUser = username;
+            btnConnectPi.innerHTML = `<i class="fa-solid fa-user-check"></i> ${username}`;
+            btnConnectPi.style.backgroundColor = "var(--primary-yellow)";
+            btnConnectPi.style.color = "var(--bg-main)";
+            
+            // إظهار تبويب "لوحة التحكم"
+            document.getElementById('navDashboardDesktop').classList.remove('auth-hidden');
+            document.getElementById('navDashboardMobile').classList.remove('auth-hidden');
+            
+            showToast(`أهلاً بك يا ${username}!`, 'success');
+            renderDashboard();
+        }
 
-        // ==========================================
-        // 2. إدارة البيانات والتنقل
-        // ==========================================
-        const defaultProjects = [
-            {
-                id: 1,
-                name: "منصة DealWay التجارية",
-                url: "#",
-                bounty: 150,
-                mainImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&auto=format&fit=crop&q=60",
-                desc: "موقع تجاري لعرض المنتجات. نطاق الفحص يشمل تجاوز المصادقة وثغرات الدفع."
-            },
-            {
-                id: 2,
-                name: "تطبيق PiChat",
-                url: "#",
-                bounty: 300,
-                mainImg: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&auto=format&fit=crop&q=60",
-                desc: "تطبيق دردشة لا مركزي. نبحث عن ثغرات XSS وتسريب البيانات."
-            }
-        ];
-
-        let projects = JSON.parse(localStorage.getItem('piBountyProjects')) || defaultProjects;
-
+        // 2. إشعارات وتصفح الصفحات
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = 'toast';
-            
-            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check" style="color:var(--success)"></i>' : '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>';
+            const icon = type === 'success' ? '<i class="fa-solid fa-check" style="color:var(--success)"></i>' : '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>';
             if(type === 'danger') toast.style.borderLeftColor = 'var(--danger)';
-
             toast.innerHTML = `${icon} <span>${message}</span>`;
             container.appendChild(toast);
-
-            setTimeout(() => {
-                if(toast.parentElement) toast.remove();
-            }, 3500);
+            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3500);
         }
 
-        function switchPage(pageId, clickedBtn, mobileNavId) {
+        function switchPage(pageId, clickedBtn, pairNavId) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.desktop-nav button, .nav-item').forEach(btn => btn.classList.remove('active'));
 
             document.getElementById(pageId).classList.add('active');
             
-            if(clickedBtn.parentElement.classList.contains('desktop-nav')) {
-                clickedBtn.classList.add('active');
-                document.getElementById(mobileNavId).classList.add('active');
-            } else {
-                clickedBtn.classList.add('active');
-                const index = Array.from(clickedBtn.parentElement.children).indexOf(clickedBtn);
-                document.querySelector('.desktop-nav').children[index].classList.add('active');
+            clickedBtn.classList.add('active');
+            if(pairNavId && document.getElementById(pairNavId)) {
+                document.getElementById(pairNavId).classList.add('active');
             }
             window.scrollTo(0, 0);
+
+            if(pageId === 'pageDashboard') renderDashboard();
         }
 
-        // ==========================================
-        // 3. عرض المشاريع
-        // ==========================================
-        const projectsGrid = document.getElementById('projectsGrid');
-
+        // 3. عرض المشاريع في الاستكشاف ونموذج الإبلاغ
         function renderProjects() {
-            projectsGrid.innerHTML = '';
+            const grid = document.getElementById('projectsGrid');
+            const select = document.getElementById('reportTarget');
+            grid.innerHTML = ''; select.innerHTML = '<option value="">اختر المشروع...</option>';
 
-            projects.forEach(project => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <div class="card-img-container">
-                        <img src="${project.mainImg}" class="card-main-img" alt="${project.name}">
-                        <div class="bounty-tag"><i class="fa-brands fa-pied-piper-alt"></i> ${project.bounty} Pi</div>
-                    </div>
-                    <div class="card-body">
-                        <h3>${project.name}</h3>
-                        <p>${project.desc}</p>
-                        <button class="btn btn-outline btn-full" onclick="showToast('تم تحويلك لبيئة الفحص المعزولة', 'success')">
-                            <i class="fa-solid fa-terminal"></i> بدء الفحص
-                        </button>
-                    </div>
-                `;
-                projectsGrid.appendChild(card);
+            projects.forEach(p => {
+                grid.innerHTML += `
+                    <div class="card">
+                        <div class="card-img-container">
+                            <img src="${p.mainImg}" class="card-main-img">
+                            <div class="bounty-tag"><i class="fa-brands fa-pied-piper-alt"></i> ${p.bounty} Pi</div>
+                        </div>
+                        <div class="card-body">
+                            <h3>${p.name}</h3>
+                            <p>${p.desc}</p>
+                            <button class="btn btn-outline btn-full" onclick="showToast('تم التحويل لبيئة الفحص المعزولة')">بدء الفحص</button>
+                        </div>
+                    </div>`;
+                select.innerHTML += `<option value="${p.id}">${p.name} (بواسطة ${p.owner})</option>`;
             });
         }
 
-        // ==========================================
-        // 4. معالجة النماذج ورفع الملفات
-        // ==========================================
+        // 4. عرض لوحة تحكم المطور
+        function renderDashboard() {
+            if(!currentUser) return;
+            
+            const myProjects = projects.filter(p => p.owner === currentUser);
+            const listProj = document.getElementById('myProjectsList');
+            const listRep = document.getElementById('incomingReportsList');
+            
+            listProj.innerHTML = myProjects.length ? '' : '<div class="empty-state">لم تقم برفع أي مشاريع بعد.</div>';
+            myProjects.forEach(p => {
+                listProj.innerHTML += `<div class="report-item" style="border-color:var(--success)"><div class="report-content"><h4>${p.name}</h4><span class="report-meta">جائزة: ${p.bounty} Pi</span></div></div>`;
+            });
+
+            // عرض التقارير الواردة لمشاريع هذا المطور
+            const myProjIds = myProjects.map(p => p.id.toString());
+            const myReports = reports.filter(r => myProjIds.includes(r.projectId));
+            
+            listRep.innerHTML = myReports.length ? '' : '<div class="empty-state">لا يوجد تقارير ثغرات مرسلة لمشاريعك حتى الآن.</div>';
+            myReports.forEach(r => {
+                const projName = projects.find(p => p.id.toString() === r.projectId)?.name || 'غير معروف';
+                listRep.innerHTML += `
+                    <div class="report-item">
+                        <img src="${r.imgData}" class="report-img">
+                        <div class="report-content">
+                            <h4>تقرير وارد لـ: ${projName}</h4>
+                            <p>${r.desc}</p>
+                            <span class="report-meta"><i class="fa-solid fa-wallet"></i> مرسل من: ${r.wallet}</span>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // 5. أدوات الملفات
         function updateFileName(input) {
             const btn = input.previousElementSibling;
-            if (input.files && input.files[0]) {
-                btn.innerHTML = `<i class="fa-solid fa-check"></i> تم اختيار الصورة بنجاح`;
-                btn.style.borderColor = "var(--success)";
-                btn.style.color = "var(--success)";
+            if (input.files[0]) {
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> تم اختيار الصورة`;
+                btn.style.borderColor = "var(--success)"; btn.style.color = "var(--success)";
             }
         }
+        const getBase64 = file => new Promise((res, rej) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => res(reader.result); });
 
-        function getBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        // إرسال مشروع جديد
+        // 6. رفع مشروع جديد
         document.getElementById('uploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            if(!currentUser) return showToast('يجب تسجيل الدخول أولاً لرفع مشروع!', 'danger');
             
-            const fileInput = document.getElementById('projMainImg');
-            let imgData = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500&auto=format&fit=crop&q=60';
-            
-            if (fileInput.files.length > 0) {
-                imgData = await getBase64(fileInput.files[0]);
-            }
+            const file = document.getElementById('projMainImg').files[0];
+            const imgData = file ? await getBase64(file) : '';
 
-            const newProject = {
-                id: Date.now(),
+            projects.unshift({
+                id: Date.now(), owner: currentUser,
                 name: document.getElementById('projName').value,
                 url: document.getElementById('projUrl').value,
                 bounty: document.getElementById('projBounty').value,
-                mainImg: imgData,
-                desc: document.getElementById('projDesc').value
-            };
+                desc: document.getElementById('projDesc').value,
+                mainImg: imgData
+            });
 
-            projects.unshift(newProject);
-            localStorage.setItem('piBountyProjects', JSON.stringify(projects));
+            localStorage.setItem('piProjects', JSON.stringify(projects));
+            renderProjects(); renderDashboard(); this.reset();
+            document.querySelector('#uploadForm .file-upload-btn').innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الغلاف';
             
-            renderProjects();
-            this.reset();
-            
-            const btn = document.querySelector('#uploadForm .file-upload-btn');
-            btn.innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الغلاف';
-            btn.style = '';
-
-            showToast('تم نشر برنامج المكافآت بنجاح!');
-            const exploreBtn = document.querySelector('.desktop-nav button:first-child');
-            switchPage('pageExplore', exploreBtn, 'navExplore');
+            showToast('تم نشر المشروع بنجاح!');
+            switchPage('pageDashboard', document.getElementById('navDashboardDesktop'), 'navDashboardMobile');
         });
 
-        // إرسال تقرير خطأ / ثغرة (النموذج المبسط)
-        document.getElementById('reportForm').addEventListener('submit', function(e) {
+        // 7. إرسال تقرير خطأ
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // محاكاة إرسال البيانات
-            showToast('تم استلام تقريرك بنجاح. سيتم مراجعته قريباً!', 'success');
+            const file = document.getElementById('bugImage').files[0];
+            const imgData = file ? await getBase64(file) : '';
+
+            reports.unshift({
+                id: Date.now(),
+                projectId: document.getElementById('reportTarget').value,
+                desc: document.getElementById('bugDescription').value,
+                wallet: document.getElementById('piAddress').value,
+                imgData: imgData
+            });
+
+            localStorage.setItem('piReports', JSON.stringify(reports));
+            renderDashboard(); this.reset();
+            document.getElementById('bugImageBtn').innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الخطأ';
             
-            // إعادة تعيين النموذج
-            this.reset();
-            
-            const btn = document.getElementById('bugImageBtn');
-            btn.innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الخطأ';
-            btn.style = '';
+            showToast('تم إرسال التقرير للمطور بنجاح!', 'success');
         });
 
-        // تشغيل البناء الأولي
         renderProjects();
     </script>
 </body>
