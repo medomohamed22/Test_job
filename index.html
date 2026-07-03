@@ -2,8 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المساعد الذكي - Pi Network</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Pro Assistant</title>
     
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -12,77 +12,69 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-
-    <!-- إضافة مكتبة Pi SDK -->
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+    
+    <!-- غطاء للشاشة في الهواتف عند فتح القائمة -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-    <!-- شاشة تسجيل الدخول -->
-    <div id="login-screen" class="login-container">
-        <div class="login-card">
-            <div class="pi-logo-container">
-                <i class="fab fa-product-hunt"></i>
-            </div>
-            <h2>مرحباً بك في المساعد الذكي</h2>
-            <p>يجب تسجيل الدخول باستخدام حساب Pi الخاص بك للبدء.</p>
-            <button id="pi-login-btn" class="pi-btn">
-                <i class="fab fa-product-hunt"></i> تسجيل الدخول بواسطة Pi
-            </button>
-            <p id="login-error" class="error-msg"></p>
+    <aside class="sidebar hidden-mobile" id="sidebar">
+        <div class="sidebar-header">
+            <button id="new-chat-btn"><i class="fas fa-plus"></i> محادثة جديدة</button>
+            <button id="close-sidebar-mobile" class="mobile-only-btn"><i class="fas fa-times"></i></button>
         </div>
-    </div>
+        <div class="history-list" id="history-list"></div>
+        <div class="sidebar-footer">
+            <button id="export-pdf-btn"><i class="fas fa-file-pdf"></i> تصدير PDF</button>
+        </div>
+    </aside>
 
-    <!-- الحاوية الرئيسية للشات (مخفية افتراضياً) -->
-    <div id="main-chat-container" class="chat-container" style="display: none;">
-        <!-- الرأس -->
+    <div class="main-content">
         <header class="chat-header">
-            <div class="header-left">
-                <div class="ai-icon-container">
-                    <i class="fas fa-microchip"></i>
-                </div>
-                <h2>المساعد <span>Pro</span></h2>
-            </div>
-            
             <div class="header-right">
-                <!-- عرض اسم المستخدم بعد تسجيل الدخول -->
-                <span id="username-display" class="pi-username"></span>
-                
-                <!-- تخصيص الشخصية -->
-                <select id="persona-select" title="اختر شخصية المساعد">
-                    <option value="مساعد ذكي عام، تجيب بوضوح واختصار.">🤖 مساعد عام</option>
-                    <option value="أنت مبرمج خبير ومهندس برمجيات، تشرح الأكواد بالتفصيل.">💻 مبرمج خبير</option>
-                    <option value="أنت كاتب محتوى مبدع، تكتب مقالات جذابة بأسلوب تسويقي.">✍️ كاتب محتوى</option>
+                <button id="toggle-sidebar" class="icon-btn"><i class="fas fa-bars"></i></button>
+                <div class="ai-icon-container"><i class="fas fa-microchip"></i></div>
+                <h2 class="hide-on-mobile">المساعد <span>Pro</span></h2>
+            </div>
+            <div class="header-left">
+                <select id="persona-select" class="persona-dropdown">
+                    <option value="helpful">مساعد عام</option>
+                    <option value="programmer">مبرمج</option>
+                    <option value="teacher">معلم</option>
                 </select>
-                <!-- الأزرار -->
-                <button id="export-btn" title="تصدير المحادثة"><i class="fas fa-download"></i></button>
-                <button id="theme-toggle" title="الوضع الليلي/النهاري"><i class="fas fa-moon"></i></button>
+                <button id="theme-toggle" class="icon-btn"><i class="fas fa-moon"></i></button>
             </div>
         </header>
 
-        <!-- منطقة الرسائل -->
         <main class="chat-box" id="chat-box">
-            <!-- اقتراحات ذكية تظهر في البداية -->
             <div class="suggestions-container" id="suggestions">
-                <h3>كيف يمكنني مساعدتك اليوم؟ ✨</h3>
+                <h3>كيف يمكنني مساعدتك؟</h3>
                 <div class="suggestions-grid">
-                    <button class="suggestion-btn" onclick="sendSuggestion('اكتب لي كود HTML و CSS لآلة حاسبة')">🧮 كود لآلة حاسبة</button>
-                    <button class="suggestion-btn" onclick="sendSuggestion('اشرح لي مشروع Pi Network باختصار')">🟣 اشرح Pi Network</button>
-                    <button class="suggestion-btn" onclick="sendSuggestion('كيف أتعلم لغة بايثون من الصفر؟')">🐍 تعلم بايثون</button>
-                    <button class="suggestion-btn" onclick="sendSuggestion('اكتب لي قصة قصيرة ملهمة عن النجاح')">📖 قصة قصيرة</button>
+                    <button class="sugg-btn">اكتب كود HTML لآلة حاسبة</button>
+                    <button class="sugg-btn">اشرح الفرق بين React و Vue</button>
+                    <button class="sugg-btn">ترجم هذه العبارة للإنجليزية</button>
+                    <button class="sugg-btn">لخص أهمية الذكاء الاصطناعي</button>
                 </div>
             </div>
         </main>
 
-        <!-- منطقة الإدخال -->
+        <div id="image-preview-container" style="display: none;">
+            <img id="image-preview" src="" alt="preview">
+            <button id="remove-image"><i class="fas fa-times"></i></button>
+        </div>
+
         <div class="input-container">
             <div class="input-box">
-                <textarea id="user-input" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
-                <!-- زر إيقاف التوليد -->
-                <button id="stop-btn" title="إيقاف التوليد" style="display: none;"><i class="fas fa-stop"></i></button>
-                <button id="send-btn" title="إرسال"><i class="fas fa-paper-plane"></i></button>
+                <input type="file" id="file-upload" accept="image/*" hidden>
+                <label for="file-upload" class="action-btn"><i class="fas fa-image"></i></label>
+                
+                <textarea id="user-input" placeholder="اكتب رسالتك..." rows="1"></textarea>
+                
+                <button id="mic-btn" class="action-btn"><i class="fas fa-microphone"></i></button>
+                <button id="send-btn" class="send-btn"><i class="fas fa-paper-plane"></i></button>
+                <button id="stop-btn" class="stop-btn" style="display: none;"><i class="fas fa-stop-circle"></i></button>
             </div>
-            <p class="disclaimer">يعمل بواسطة Google AI | متصل بشبكة Pi Network</p>
         </div>
     </div>
 
