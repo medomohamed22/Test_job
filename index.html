@@ -2,116 +2,705 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#170f2e">
-    <title>AI Pro + Pi Network</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiBountyStore | منصة اكتشاف الثغرات</title>
+    
+    <!-- خطوط جوجل -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- أيقونات FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-    <!-- Pi Network SDK -->
+    <!-- استدعاء Pi Network SDK الرسمي -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+    <style>
+        /* ==========================================
+           1. المتغيرات والأساسيات (ألوان أرجواني وأصفر)
+           ========================================== */
+        :root {
+            --bg-main: #1e1030; /* أرجواني داكن للخلفية */
+            --bg-card: #2d1947; /* أرجواني أفتح للبطاقات */
+            --bg-glass: rgba(45, 25, 71, 0.85); /* أرجواني شفاف */
+            --text-main: #d8cce8;
+            --text-light: #ffffff;
+            --text-muted: #a693c4;
+            --primary-yellow: #fdd835; /* أصفر فاقع */
+            --primary-yellow-hover: #fbc02d;
+            --success: #00e676;
+            --danger: #ff1744;
+            --border: #4e3573;
+            --shadow: 0 8px 24px rgba(0,0,0,0.4);
+            --transition: all 0.3s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 80px;
+        }
+
+        .container { width: 90%; max-width: 1000px; margin: 0 auto; }
+
+        /* ==========================================
+           2. الرأس (Header) وشريط التنقل العلوي
+           ========================================== */
+        header {
+            background-color: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i { color: var(--primary-yellow); }
+        .logo span { color: var(--primary-yellow); }
+
+        .desktop-nav {
+            display: none;
+            gap: 20px;
+        }
+
+        .desktop-nav button {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Cairo';
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .desktop-nav button:hover, .desktop-nav button.active {
+            color: var(--primary-yellow);
+        }
+
+        /* ==========================================
+           3. الأزرار العامة
+           ========================================== */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-family: 'Cairo', sans-serif;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background-color: var(--primary-yellow); color: var(--bg-main); }
+        .btn-primary:hover { background-color: var(--primary-yellow-hover); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(253, 216, 53, 0.3); }
+
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-danger:hover { background-color: #d50000; transform: translateY(-2px); }
+
+        .btn-outline { background-color: transparent; border: 1px solid var(--primary-yellow); color: var(--primary-yellow); }
+        .btn-outline:hover { background-color: rgba(253, 216, 53, 0.1); }
+
+        .btn-full { width: 100%; margin-top: 15px; }
+
+        /* ==========================================
+           4. نظام الصفحات (Tabs)
+           ========================================== */
+        .page {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+            padding-top: 30px;
+        }
+        .page.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .section-header h2 {
+            font-size: 28px;
+            color: var(--text-light);
+        }
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        /* ==========================================
+           5. البطاقات (الاستكشاف)
+           ========================================== */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-yellow);
+            box-shadow: var(--shadow);
+        }
+
+        .card-img-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+        }
+
+        .card-main-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .bounty-tag {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            color: var(--primary-yellow);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            border: 1px solid var(--primary-yellow);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card h3 { color: var(--text-light); margin-bottom: 10px; font-size: 20px; }
+        .card p { font-size: 14px; margin-bottom: 20px; color: var(--text-muted); flex-grow: 1; }
+
+        /* ==========================================
+           6. النماذج (Forms)
+           ========================================== */
+        .form-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: var(--shadow);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border);
+            color: var(--text-light);
+            border-radius: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 15px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-yellow);
+            box-shadow: 0 0 0 3px rgba(253, 216, 53, 0.1);
+        }
+
+        /* تنسيق رفع الملفات */
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-upload-wrapper input[type="file"] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px;
+            background-color: rgba(255,255,255,0.05);
+            border: 1px dashed var(--text-muted);
+            border-radius: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .file-upload-wrapper:hover .file-upload-btn {
+            border-color: var(--primary-yellow);
+            color: var(--primary-yellow);
+            background-color: rgba(253, 216, 53, 0.05);
+        }
+
+        /* ==========================================
+           7. شريط التنقل السفلي (للموبايل)
+           ========================================== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background-color: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            width: 33.33%;
+            height: 100%;
+            transition: var(--transition);
+            gap: 5px;
+        }
+
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--primary-yellow); }
+
+        /* ==========================================
+           8. الإشعارات (Toast)
+           ========================================== */
+        .toast-container {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .toast {
+            background-color: var(--bg-card);
+            border-left: 4px solid var(--primary-yellow);
+            color: var(--text-light);
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideUp 0.3s ease, fadeOut 0.5s ease 3s forwards;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+
+        @media (min-width: 768px) {
+            .bottom-nav { display: none; }
+            .desktop-nav { display: flex; }
+            body { padding-bottom: 0; }
+            .toast-container { bottom: 30px; left: 30px; transform: none; }
+        }
+    </style>
 </head>
 <body>
-    <div class="app-shell">
-        <div id="login-modal" class="modal-overlay">
-            <section class="modal-card login-card">
-                <div class="brand-orb"><i class="fa-solid fa-brain"></i></div>
-                <h1>AI Pro</h1>
-                <p>سجّل دخولك بحساب Pi واحصل على 5 توكينات مجانية للبدء.</p>
-                <button id="pi-login-btn" class="primary-action">
-                    <i class="fab fa-pi"></i>
-                    تسجيل الدخول بـ Pi
-                </button>
-                <small>يعمل تسجيل الدخول من داخل Pi Browser فقط.</small>
-            </section>
-        </div>
 
-        <div id="buy-modal" class="modal-overlay" style="display:none;">
-            <section class="modal-card">
-                <div class="modal-icon warning"><i class="fa-solid fa-coins"></i></div>
-                <h2>انتهت التوكينات</h2>
-                <p>اشترِ 50 توكن للمتابعة باستخدام Pi.</p>
-                <div id="price-loader" class="loader-line">جاري حساب السعر... <i class="fas fa-spinner fa-spin"></i></div>
-                <h3 id="live-pi-price" style="display:none;">السعر: 0.00 Pi</h3>
-                <button id="buy-tokens-btn" class="primary-action" style="display:none;">
-                    <i class="fas fa-shopping-cart"></i>
-                    شراء 50 توكن
-                </button>
-                <button id="close-buy-modal" class="secondary-action">إغلاق</button>
-            </section>
-        </div>
-
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-top">
-                <div class="mini-logo"><i class="fa-solid fa-sparkles"></i></div>
-                <div>
-                    <strong>AI Pro</strong>
-                    <span>Pi Powered</span>
-                </div>
+    <!-- الرأس والتنقل -->
+    <header>
+        <div class="container navbar">
+            <div class="logo">
+                <i class="fa-brands fa-pied-piper-alt"></i> 
+                Pi<span>Bounty</span>
+            </div>
+            
+            <div class="desktop-nav">
+                <button class="active" onclick="switchPage('pageExplore', this, 'navExplore')"><i class="fa-solid fa-compass"></i> استكشاف</button>
+                <button onclick="switchPage('pageUpload', this, 'navUpload')"><i class="fa-solid fa-cloud-arrow-up"></i> رفع مشروع</button>
+                <button onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> الإبلاغ عن خطأ</button>
             </div>
 
-            <button id="new-chat-btn" class="new-chat-btn">
-                <i class="fas fa-plus"></i>
-                محادثة جديدة
+            <!-- زر تسجيل الدخول باستخدام Pi SDK -->
+            <button class="btn btn-outline" id="btnConnectPi">
+                <i class="fa-brands fa-pied-piper-alt"></i> Pi Login
             </button>
+        </div>
+    </header>
 
-            <div class="sidebar-section-title">المحادثة</div>
-            <div id="history-list" class="history-list">
-                <div class="history-empty">ابدأ محادثة جديدة الآن</div>
+    <!-- المحتوى الرئيسي -->
+    <main class="container">
+
+        <!-- 1. صفحة الاستكشاف -->
+        <div id="pageExplore" class="page active">
+            <div class="section-header">
+                <h2>برامج مكافآت الثغرات النشطة</h2>
+                <p>ابحث عن الثغرات، أبلغ عنها، واكسب عملات Pi بأمان.</p>
             </div>
-        </aside>
+            <div class="projects-grid" id="projectsGrid">
+                <!-- يتم حقن المشاريع هنا بواسطة الجافاسكربت -->
+            </div>
+        </div>
 
-        <div id="sidebar-overlay" class="sidebar-overlay"></div>
-
-        <main class="main-content">
-            <header class="chat-header">
-                <div class="header-right">
-                    <button id="toggle-sidebar" class="icon-btn" aria-label="القائمة">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <div class="title-block">
-                        <h2>المساعد <span>Pro</span></h2>
-                        <p>اسأل أي شيء واحصل على رد ذكي</p>
+        <!-- 2. صفحة المطورين (رفع مشروع) -->
+        <div id="pageUpload" class="page">
+            <div class="section-header">
+                <h2>بوابة المطورين</h2>
+                <p>قم بإدراج موقعك لتلقي تقارير أمنية من المجتمع</p>
+            </div>
+            <div class="form-card">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label>اسم المشروع</label>
+                        <input type="text" class="form-control" id="projName" required placeholder="مثال: متجر إلكتروني">
                     </div>
-                </div>
-
-                <div class="header-left">
-                    <div class="user-pill">
-                        <span id="username-display">ضيف</span>
-                        <div class="token-badge">🪙 <span id="token-count">0</span></div>
+                    <div class="form-group">
+                        <label>رابط المنصة (URL)</label>
+                        <input type="url" class="form-control" id="projUrl" required placeholder="https://example.com">
                     </div>
-                    <button id="theme-toggle" class="icon-btn" aria-label="الوضع الليلي">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
-            </header>
+                    <div class="form-group">
+                        <label>المكافأة المرصودة (Pi)</label>
+                        <input type="number" class="form-control" id="projBounty" required placeholder="مثال: 100">
+                    </div>
+                    <div class="form-group">
+                        <label>صورة الواجهة الرئيسية</label>
+                        <div class="file-upload-wrapper">
+                            <div class="file-upload-btn"><i class="fa-solid fa-image"></i> اختر صورة الغلاف</div>
+                            <input type="file" id="projMainImg" accept="image/*" required onchange="updateFileName(this)">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>نطاق الفحص (Scope & Rules)</label>
+                        <textarea class="form-control" id="projDesc" rows="4" required placeholder="حدد ما هو مسموح وما هو ممنوع أثناء الفحص..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-shield-halved"></i> نشر برنامج المكافآت</button>
+                </form>
+            </div>
+        </div>
 
-            <section id="chat-box" class="chat-box">
-                <div class="welcome-panel">
-                    <div class="welcome-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-                    <h1>مرحباً بك 👋</h1>
-                    <p>اكتب سؤالك واضغط إرسال. كل رسالة تستهلك توكن واحد.</p>
-                </div>
-            </section>
+        <!-- 3. صفحة الإبلاغ المبسطة (رفع الثغرة) -->
+        <div id="pageReport" class="page">
+            <div class="section-header">
+                <h2>اكتشاف الثغرات والأخطاء</h2>
+                <p>ارفع صورة المشكلة ووصفها ليتم مراجعتها</p>
+            </div>
+            <div class="form-card">
+                <form id="reportForm">
+                    <div class="form-group">
+                        <label>صورة للثغرة أو الخطأ</label>
+                        <div class="file-upload-wrapper">
+                            <div class="file-upload-btn" id="bugImageBtn"><i class="fa-solid fa-image"></i> اختر صورة الخطأ</div>
+                            <input type="file" id="bugImage" accept="image/*" required onchange="updateFileName(this)">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>وصف الثغرة أو الخطأ</label>
+                        <textarea class="form-control" id="bugDescription" rows="5" required placeholder="اشرح المشكلة بالتفصيل وكيفية الوصول إليها..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>عنوان محفظة Pi الخاصة بك (لتلقي المكافأة)</label>
+                        <input type="text" class="form-control" id="piAddress" required placeholder="GABCD...1234">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-paper-plane"></i> إرسال التقرير</button>
+                </form>
+            </div>
+        </div>
 
-            <footer class="input-container">
-                <div class="input-box">
-                    <textarea id="user-input" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
-                    <button id="send-btn" class="send-btn" aria-label="إرسال">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-                <div class="input-hint">Enter للإرسال · Shift + Enter لسطر جديد</div>
-            </footer>
-        </main>
-    </div>
+    </main>
 
-    <script src="script.js"></script>
+    <!-- شريط التنقل السفلي (للموبايل فقط) -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" id="navExplore" onclick="switchPage('pageExplore', this, 'navExplore')">
+            <i class="fa-solid fa-compass"></i> الاستكشاف
+        </button>
+        <button class="nav-item" id="navUpload" onclick="switchPage('pageUpload', this, 'navUpload')">
+            <i class="fa-solid fa-cloud-arrow-up"></i> رفع مشروع
+        </button>
+        <button class="nav-item" id="navReport" onclick="switchPage('pageReport', this, 'navReport')">
+            <i class="fa-solid fa-bug"></i> الإبلاغ
+        </button>
+    </nav>
+
+    <!-- حاوية الإشعارات -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==========================================
+        // 1. تهيئة Pi SDK و برمجة زر تسجيل الدخول
+        // ==========================================
+        
+        // تفعيل SDK (مع إيقاف Sandbox كما طلبت)
+        try {
+            Pi.init({ version: "2.0", sandbox: false });
+        } catch (e) {
+            console.warn("تنبيه: يجب فتح الموقع داخل Pi Browser ليعمل الـ SDK بشكل كامل.", e);
+        }
+
+        const btnConnectPi = document.getElementById('btnConnectPi');
+        
+        btnConnectPi.addEventListener('click', async function() {
+            if(this.classList.contains('connected')) return; // لمنع الدخول المتكرر
+            
+            // تغيير شكل الزر لحالة التحميل
+            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الدخول...';
+            
+            try {
+                // طلب الصلاحيات (الاسم فقط)
+                const scopes = ['username'];
+                function onIncompletePaymentFound(payment) {
+                    // دالة مطلوبة من Pi SDK لمعالجة المدفوعات غير المكتملة
+                    console.log("Incomplete payment found", payment);
+                }
+
+                // تنفيذ تسجيل الدخول الفعلي
+                const authResults = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                const username = authResults.user.username;
+
+                // تحديث الواجهة بعد النجاح
+                this.innerHTML = `<i class="fa-solid fa-user"></i> ${username}`;
+                this.style.backgroundColor = "var(--primary-yellow)";
+                this.style.color = "var(--bg-main)";
+                this.style.borderColor = "var(--primary-yellow)";
+                this.classList.add('connected');
+                
+                showToast(`أهلاً بك يا ${username}! تمت المصادقة بنجاح.`, 'success');
+
+            } catch (error) {
+                console.error("فشل تسجيل الدخول:", error);
+                showToast('حدث خطأ أثناء الاتصال بشبكة Pi. تأكد أنك تستخدم Pi Browser.', 'danger');
+                
+                // إعادة الزر لشكله الأصلي بعد الفشل
+                this.innerHTML = '<i class="fa-brands fa-pied-piper-alt"></i> Pi Login';
+            }
+        });
+
+
+        // ==========================================
+        // 2. إدارة البيانات والتنقل
+        // ==========================================
+        const defaultProjects = [
+            {
+                id: 1,
+                name: "منصة DealWay التجارية",
+                url: "#",
+                bounty: 150,
+                mainImg: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&auto=format&fit=crop&q=60",
+                desc: "موقع تجاري لعرض المنتجات. نطاق الفحص يشمل تجاوز المصادقة وثغرات الدفع."
+            },
+            {
+                id: 2,
+                name: "تطبيق PiChat",
+                url: "#",
+                bounty: 300,
+                mainImg: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&auto=format&fit=crop&q=60",
+                desc: "تطبيق دردشة لا مركزي. نبحث عن ثغرات XSS وتسريب البيانات."
+            }
+        ];
+
+        let projects = JSON.parse(localStorage.getItem('piBountyProjects')) || defaultProjects;
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check" style="color:var(--success)"></i>' : '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>';
+            if(type === 'danger') toast.style.borderLeftColor = 'var(--danger)';
+
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if(toast.parentElement) toast.remove();
+            }, 3500);
+        }
+
+        function switchPage(pageId, clickedBtn, mobileNavId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.desktop-nav button, .nav-item').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(pageId).classList.add('active');
+            
+            if(clickedBtn.parentElement.classList.contains('desktop-nav')) {
+                clickedBtn.classList.add('active');
+                document.getElementById(mobileNavId).classList.add('active');
+            } else {
+                clickedBtn.classList.add('active');
+                const index = Array.from(clickedBtn.parentElement.children).indexOf(clickedBtn);
+                document.querySelector('.desktop-nav').children[index].classList.add('active');
+            }
+            window.scrollTo(0, 0);
+        }
+
+        // ==========================================
+        // 3. عرض المشاريع
+        // ==========================================
+        const projectsGrid = document.getElementById('projectsGrid');
+
+        function renderProjects() {
+            projectsGrid.innerHTML = '';
+
+            projects.forEach(project => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-img-container">
+                        <img src="${project.mainImg}" class="card-main-img" alt="${project.name}">
+                        <div class="bounty-tag"><i class="fa-brands fa-pied-piper-alt"></i> ${project.bounty} Pi</div>
+                    </div>
+                    <div class="card-body">
+                        <h3>${project.name}</h3>
+                        <p>${project.desc}</p>
+                        <button class="btn btn-outline btn-full" onclick="showToast('تم تحويلك لبيئة الفحص المعزولة', 'success')">
+                            <i class="fa-solid fa-terminal"></i> بدء الفحص
+                        </button>
+                    </div>
+                `;
+                projectsGrid.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // 4. معالجة النماذج ورفع الملفات
+        // ==========================================
+        function updateFileName(input) {
+            const btn = input.previousElementSibling;
+            if (input.files && input.files[0]) {
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> تم اختيار الصورة بنجاح`;
+                btn.style.borderColor = "var(--success)";
+                btn.style.color = "var(--success)";
+            }
+        }
+
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // إرسال مشروع جديد
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('projMainImg');
+            let imgData = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500&auto=format&fit=crop&q=60';
+            
+            if (fileInput.files.length > 0) {
+                imgData = await getBase64(fileInput.files[0]);
+            }
+
+            const newProject = {
+                id: Date.now(),
+                name: document.getElementById('projName').value,
+                url: document.getElementById('projUrl').value,
+                bounty: document.getElementById('projBounty').value,
+                mainImg: imgData,
+                desc: document.getElementById('projDesc').value
+            };
+
+            projects.unshift(newProject);
+            localStorage.setItem('piBountyProjects', JSON.stringify(projects));
+            
+            renderProjects();
+            this.reset();
+            
+            const btn = document.querySelector('#uploadForm .file-upload-btn');
+            btn.innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الغلاف';
+            btn.style = '';
+
+            showToast('تم نشر برنامج المكافآت بنجاح!');
+            const exploreBtn = document.querySelector('.desktop-nav button:first-child');
+            switchPage('pageExplore', exploreBtn, 'navExplore');
+        });
+
+        // إرسال تقرير خطأ / ثغرة (النموذج المبسط)
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // محاكاة إرسال البيانات
+            showToast('تم استلام تقريرك بنجاح. سيتم مراجعته قريباً!', 'success');
+            
+            // إعادة تعيين النموذج
+            this.reset();
+            
+            const btn = document.getElementById('bugImageBtn');
+            btn.innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الخطأ';
+            btn.style = '';
+        });
+
+        // تشغيل البناء الأولي
+        renderProjects();
+    </script>
 </body>
 </html>
