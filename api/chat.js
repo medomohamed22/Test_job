@@ -1,3 +1,4 @@
+
 export const config = {
   runtime: 'edge' // استخدام بيئة Edge لسرعة البث المباشر كالبرق
 };
