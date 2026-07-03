@@ -1,4 +1,7 @@
-// --- الإعدادات ---
+// =============================
+// Pi Network SDK Configuration
+// =============================
+
 const API_URL = '/api/chat';
 const PI_PRICE_API = '/api/pi-price';
 
@@ -8,7 +11,10 @@ let currentPiPriceUSD = 0;
 const PRICE_FOR_50_TOKENS_USD = 0.50;
 let costInPi = 0;
 
-// --- العناصر ---
+// =============================
+// Elements
+// =============================
+
 const loginModal = document.getElementById('login-modal');
 const buyModal = document.getElementById('buy-modal');
 const piLoginBtn = document.getElementById('pi-login-btn');
@@ -18,85 +24,140 @@ const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 
-// --- 1. تهيئة Pi Network باحترافية ---
-// التحقق من أن مكتبة Pi تم تحميلها من الـ HTML
-if (typeof window.Pi === 'undefined') {
-    console.error("⚠️ لم يتم تحميل مكتبة Pi Network. تأكد من وجود سكريبت pi.js في ملف HTML.");
+// =============================
+// Initialize Pi SDK
+// =============================
+
+if (!window.Pi) {
+    console.error("Pi SDK not loaded");
+    alert("يجب فتح التطبيق من داخل Pi Browser.");
 } else {
     try {
-        // نصيحة: للتجربة اجعلها sandbox: true، وعند الإطلاق الفعلي للجمهور اجعلها sandbox: false
-        Pi.init({ version: "2.0", sandbox: false });
-        console.log("✅ تم تهيئة Pi Network بنجاح.");
-    } catch (e) {
-        console.error("⚠️ خطأ في تهيئة Pi:", e);
+        Pi.init({
+            version: "2.0",
+            sandbox: false
+        });
+        
+        console.log("✅ Pi SDK initialized");
+    } catch (err) {
+        console.error("Pi init error:", err);
     }
 }
 
-// تعريف دالة المدفوعات المعلقة (يجب تعريفها قبل تمريرها لتسجيل الدخول)
+// =============================
+// Incomplete Payments
+// =============================
+
 const onIncompletePaymentFound = (payment) => {
-    console.log("مدفوعات معلقة تحتاج لمعالجة:", payment);
+    console.log("Incomplete payment:", payment);
 };
 
-// --- 2. نظام تسجيل الدخول بـ Pi (مضاد للأخطاء) ---
-piLoginBtn.addEventListener('click', async () => {
+// =============================
+// Login System
+// =============================
+
+piLoginBtn.addEventListener("click", async () => {
+    
+    if (!window.Pi) {
+        alert("افتح التطبيق من داخل Pi Browser");
+        return;
+    }
+    
     try {
-        // تغيير شكل الزر لإظهار حالة "التحميل"
-        piLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال...';
-        piLoginBtn.style.opacity = '0.7';
+        
+        piLoginBtn.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال...';
+        
         piLoginBtn.disabled = true;
+        piLoginBtn.style.opacity = "0.7";
         
-        // طلب صلاحيات الدخول
-        const scopes = ['username', 'payments'];
+        const scopes = [
+            "username",
+            "payments"
+        ];
         
-        // استدعاء نافذة تسجيل الدخول الخاصة بـ Pi
-        const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+        const auth = await Pi.authenticate(
+            scopes,
+            onIncompletePaymentFound
+        );
         
-        if (auth && auth.user) {
-            piUser = auth.user;
-            usernameDisplay.innerText = `@${piUser.username}`;
-            
-            // جلب التوكينات من الذاكرة المحلية
-            const storedTokens = localStorage.getItem(`tokens_${piUser.username}`);
-            
-            if (storedTokens === null) {
-                tokens = 5; // هدية أول استخدام
-                localStorage.setItem(`tokens_${piUser.username}`, tokens);
-            } else {
-                tokens = parseInt(storedTokens);
-            }
-            
-            updateTokenDisplay();
-            
-            // إخفاء نافذة تسجيل الدخول بنجاح
-            loginModal.style.display = 'none';
+        console.log("Auth:", auth);
+        
+        if (!auth || !auth.user) {
+            throw new Error("لم يتم استلام بيانات المستخدم");
         }
         
-    } catch (err) {
-        // إعادة الزر لحالته الطبيعية في حالة الخطأ
-        piLoginBtn.innerHTML = '<i class="fab fa-pi"></i> تسجيل الدخول بـ Pi';
-        piLoginBtn.style.opacity = '1';
-        piLoginBtn.disabled = false;
+        piUser = auth.user;
         
-        // تحليل الخطأ وعرض رسالة مفيدة للمستخدم
-        console.error("خطأ تسجيل الدخول:", err);
+        usernameDisplay.innerText =
+            "@" + piUser.username;
         
-        if (err.message && err.message.toLowerCase().includes("not within pi browser")) {
-            alert("⚠️ عذراً! يجب فتح هذا الموقع من داخل تطبيق متصفح (Pi Browser) لكي يعمل تسجيل الدخول.");
+        const saved =
+            localStorage.getItem(
+                `tokens_${piUser.username}`
+            );
+        
+        if (saved === null) {
+            tokens = 5;
+            localStorage.setItem(
+                `tokens_${piUser.username}`,
+                tokens
+            );
         } else {
-            alert("⚠️ فشل الاتصال بشبكة Pi. \nالسبب: " + (err.message || err) + "\nتأكد من فتح الموقع في Pi Browser.");
+            tokens = parseInt(saved);
+        }
+        
+        updateTokenDisplay();
+        
+        loginModal.style.display = "none";
+        
+        console.log(
+            "✅ Login Success:",
+            piUser.username
+        );
+        
+    } catch (err) {
+        
+        console.error("Login Error:", err);
+        
+        piLoginBtn.innerHTML =
+            '<i class="fab fa-pi"></i> تسجيل الدخول بـ Pi';
+        
+        piLoginBtn.disabled = false;
+        piLoginBtn.style.opacity = "1";
+        
+        if (
+            err.message &&
+            err.message
+            .toLowerCase()
+            .includes("browser")
+        ) {
+            alert(
+                "يجب فتح التطبيق من داخل Pi Browser."
+            );
+        } else {
+            alert(
+                "فشل تسجيل الدخول:\n" +
+                (err.message || err)
+            );
         }
     }
 });
 
-// تحديث عرض التوكينات
+// =============================
+// Update Tokens
+// =============================
+
 function updateTokenDisplay() {
+    
     if (tokenCountElement) {
         tokenCountElement.innerText = tokens;
     }
+    
     if (piUser) {
-        localStorage.setItem(`tokens_${piUser.username}`, tokens);
+        localStorage.setItem(
+            `tokens_${piUser.username}`,
+            tokens
+        );
     }
 }
-
-// --- باقي الأكواد كما هي (جلب السعر، الشراء، الإرسال للذكاء الاصطناعي، الخ) ---
-// ... (ضع باقي الدوال الخاصة بك هنا)
