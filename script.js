@@ -1,203 +1,148 @@
-// --- الاتصال بملف Vercel المخفي بدلاً من جوجل مباشرة ---
-const API_URL = '/api/chat'; 
+// --- الإعدادات ---
+const API_URL = '/api/chat';
+const PI_PRICE_API = '/api/pi-price';
 
-marked.setOptions({
-    highlight: function(code, lang) {
-        return (lang && hljs.getLanguage(lang)) ? hljs.highlight(code, { language: lang }).value : hljs.highlightAuto(code).value;
-    }
-});
+let tokens = 0;
+let piUser = null;
+let currentPiPriceUSD = 0;
+// نفترض أن 50 توكن سعرها 0.50 دولار
+const PRICE_FOR_50_TOKENS_USD = 0.50;
+let costInPi = 0;
 
-let chatHistory = [];
-let abortController = null;
-let currentImageBase64 = null;
+// --- تهيئة Pi Network (Mainnet) ---
+Pi.init({ version: "2.0", sandbox: false }); // false = حقيقي
 
 // --- العناصر ---
+const loginModal = document.getElementById('login-modal');
+const buyModal = document.getElementById('buy-modal');
+const piLoginBtn = document.getElementById('pi-login-btn');
+const tokenCountElement = document.getElementById('token-count');
+const usernameDisplay = document.getElementById('username-display');
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
-const stopBtn = document.getElementById('stop-btn');
-const themeToggle = document.getElementById('theme-toggle');
-const sidebar = document.getElementById('sidebar');
-const toggleSidebarBtn = document.getElementById('toggle-sidebar');
-const closeSidebarBtn = document.getElementById('close-sidebar-mobile');
-const sidebarOverlay = document.getElementById('sidebar-overlay');
-const personaSelect = document.getElementById('persona-select');
-const fileUpload = document.getElementById('file-upload');
-const imagePreviewContainer = document.getElementById('image-preview-container');
-const imagePreview = document.getElementById('image-preview');
-const removeImageBtn = document.getElementById('remove-image');
-const suggestions = document.getElementById('suggestions');
 
-// --- الوضع الليلي ---
-if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-themeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-});
-
-// --- فتح وغلق القائمة في الهواتف ---
-function openSidebar() {
-    sidebar.classList.add('mobile-open');
-    sidebar.classList.remove('hidden');
-    sidebarOverlay.classList.add('active');
-}
-function closeSidebar() {
-    sidebar.classList.remove('mobile-open');
-    if(window.innerWidth > 768) sidebar.classList.add('hidden');
-    sidebarOverlay.classList.remove('active');
-}
-toggleSidebarBtn.addEventListener('click', () => {
-    if(window.innerWidth <= 768) openSidebar();
-    else sidebar.classList.toggle('hidden');
-});
-closeSidebarBtn.addEventListener('click', closeSidebar);
-sidebarOverlay.addEventListener('click', closeSidebar);
-
-// محادثة جديدة
-document.getElementById('new-chat-btn').addEventListener('click', () => {
-    chatBox.innerHTML = '';
-    chatBox.appendChild(suggestions);
-    suggestions.style.display = 'block';
-    chatHistory = [];
-    if(window.innerWidth <= 768) closeSidebar();
-});
-
-// --- رفع الصور ---
-fileUpload.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        currentImageBase64 = event.target.result.split(',')[1];
-        imagePreview.src = event.target.result;
-        imagePreviewContainer.style.display = 'inline-block';
-    };
-    reader.readAsDataURL(file);
-});
-removeImageBtn.addEventListener('click', () => {
-    currentImageBase64 = null;
-    imagePreviewContainer.style.display = 'none';
-    fileUpload.value = '';
-});
-
-// إنشاء عنصر رسالة
-function createMessageElement(sender, initialText = "", imgSrc = null) {
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
-    let imgHTML = imgSrc ? `<img src="${imgSrc}" class="user-image">` : '';
-    
-    if (sender === 'user') {
-        messageDiv.innerHTML = `<div class="avatar"><i class="fas fa-user"></i></div><div class="text">${escapeHTML(initialText)} ${imgHTML}</div>`;
-    } else {
-        messageDiv.innerHTML = `<div class="avatar"><i class="fas fa-robot"></i></div><div class="text markdown-body"><div class="content"></div></div>`;
-    }
-    chatBox.appendChild(messageDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    return messageDiv.querySelector(sender === 'user' ? '.text' : '.content');
-}
-
-// الاتصال بالخادم (Vercel Backend)
-async function fetchAIResponseStream(userText) {
-    suggestions.style.display = 'none';
-    const botTextElement = createMessageElement('bot');
-    botTextElement.innerHTML = '<span style="color:var(--text-muted);"><i class="fas fa-circle-notch fa-spin"></i> جاري التفكير...</span>';
-    
-    sendBtn.style.display = 'none';
-    stopBtn.style.display = 'block';
-    
-    let userParts = [{ text: userText }];
-    if (currentImageBase64) userParts.push({ inlineData: { mimeType: "image/jpeg", data: currentImageBase64 } });
-    
-    chatHistory.push({ role: "user", parts: userParts });
-
-    let systemInstructionText = "أنت مساعد ذكي ومفيد.";
-    if (personaSelect.value === 'programmer') systemInstructionText = "أنت مبرمج خبير.";
-    if (personaSelect.value === 'teacher') systemInstructionText = "أنت معلم.";
-
-    abortController = new AbortController();
-    let fullResponseText = "";
-
+// --- 1. نظام تسجيل الدخول بـ Pi ---
+piLoginBtn.addEventListener('click', async () => {
     try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstructionText }] }, contents: chatHistory }),
-            signal: abortController.signal
-        });
-
-        if (!response.ok) throw new Error("خطأ من السيرفر");
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        botTextElement.innerHTML = ""; 
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const dataStr = line.substring(6);
-                    if (dataStr === '[DONE]') continue;
-                    try {
-                        const dataObj = JSON.parse(dataStr);
-                        if (dataObj.candidates && dataObj.candidates[0].content.parts[0].text) {
-                            fullResponseText += dataObj.candidates[0].content.parts[0].text;
-                            botTextElement.innerHTML = marked.parse(fullResponseText);
-                            chatBox.scrollTop = chatBox.scrollHeight;
-                        }
-                    } catch (e) {}
-                }
-            }
+        const scopes = ['username', 'payments'];
+        const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
+        
+        piUser = auth.user;
+        usernameDisplay.innerText = `@${piUser.username}`;
+        
+        // التحقق من قاعدة بيانات المتصفح (في التطبيقات الحقيقية يفضل استخدام قاعدة بيانات خارجية)
+        const storedTokens = localStorage.getItem(`tokens_${piUser.username}`);
+        
+        if (storedTokens === null) {
+            // مستخدم جديد = 5 توكن مجاني
+            tokens = 5;
+            localStorage.setItem(`tokens_${piUser.username}`, tokens);
+        } else {
+            tokens = parseInt(storedTokens);
         }
         
-        chatHistory.push({ role: "model", parts: [{ text: fullResponseText }] });
-        addCopyButtons(botTextElement.parentNode);
+        updateTokenDisplay();
+        loginModal.style.display = 'none';
+        
+    } catch (err) {
+        alert("فشل تسجيل الدخول: " + err.message);
+    }
+});
 
+function updateTokenDisplay() {
+    tokenCountElement.innerText = tokens;
+    localStorage.setItem(`tokens_${piUser.username}`, tokens);
+}
+
+// --- 2. جلب سعر Pi المباشر من OKX ---
+async function fetchLivePiPrice() {
+    try {
+        document.getElementById('price-loader').style.display = 'block';
+        document.getElementById('live-pi-price').style.display = 'none';
+        document.getElementById('buy-tokens-btn').style.display = 'none';
+        
+        // طلب السعر من سيرفر Vercel الخاص بنا (الذي يتصل بـ OKX)
+        const res = await fetch(PI_PRICE_API);
+        const data = await res.json();
+        currentPiPriceUSD = data.price;
+        
+        // حساب التكلفة (0.50 دولار قسمة سعر الباي الحالي)
+        costInPi = (PRICE_FOR_50_TOKENS_USD / currentPiPriceUSD).toFixed(5);
+        
+        document.getElementById('price-loader').style.display = 'none';
+        document.getElementById('live-pi-price').innerText = `السعر: ${costInPi} π (لـ 50 توكن)`;
+        document.getElementById('live-pi-price').style.display = 'block';
+        document.getElementById('buy-tokens-btn').style.display = 'block';
+        
     } catch (error) {
-        if (error.name === 'AbortError') botTextElement.innerHTML = marked.parse(fullResponseText + " \n\n*[تم إيقاف التوليد]*");
-        else botTextElement.innerHTML = "⚠️ فشل الاتصال بالخادم. تأكد من إعدادات Vercel.";
-    } finally {
-        sendBtn.style.display = 'block';
-        stopBtn.style.display = 'none';
-        currentImageBase64 = null;
-        imagePreviewContainer.style.display = 'none';
-        fileUpload.value = '';
+        alert("فشل جلب سعر Pi الحالي.");
     }
 }
 
-stopBtn.addEventListener('click', () => { if (abortController) abortController.abort(); });
-
-function addCopyButtons(container) {
-    container.querySelectorAll('pre').forEach((block) => {
-        if(block.querySelector('.copy-btn')) return;
-        const button = document.createElement('button');
-        button.className = 'copy-btn';
-        button.innerHTML = 'نسخ';
-        button.addEventListener('click', () => {
-            navigator.clipboard.writeText(block.querySelector('code').innerText).then(() => {
-                button.innerHTML = 'تم'; button.style.background = '#10a37f';
-                setTimeout(() => { button.innerHTML = 'نسخ'; button.style.background = 'rgba(255, 255, 255, 0.1)'; }, 2000);
-            });
-        });
-        block.appendChild(button);
+// --- 3. نظام الشراء بـ Pi Network ---
+document.getElementById('buy-tokens-btn').addEventListener('click', () => {
+    Pi.createPayment({
+        amount: costInPi,
+        memo: "Buy 50 AI Tokens",
+        metadata: { type: "buy_tokens", tokens_amount: 50 }
+    }, {
+        onReadyForServerApproval: (paymentId) => {
+            // في التطبيقات الحقيقية: نرسل الـ paymentId לסيرفر Vercel للموافقة
+            // للتبسيط هنا (Front-end):
+            console.log("جاهز للموافقة", paymentId);
+        },
+        onReadyForServerCompletion: (paymentId, txid) => {
+            // بعد اكتمال الدفع، نضيف التوكينات
+            tokens += 50;
+            updateTokenDisplay();
+            buyModal.style.display = 'none';
+            alert("تم شراء التوكينات بنجاح!");
+        },
+        onCancel: (paymentId) => { alert("تم إلغاء الدفع."); },
+        onError: (error, payment) => { alert("حدث خطأ في الدفع: " + error.message); }
     });
+});
+
+document.getElementById('close-buy-modal').addEventListener('click', () => {
+    buyModal.style.display = 'none';
+});
+
+function onIncompletePaymentFound(payment) {
+    // هذه الدالة تتعامل مع المدفوعات المعلقة
+    console.log("مدفوعات معلقة:", payment);
 }
 
-function handleSend(textOverride = null) {
-    const text = textOverride || userInput.value.trim();
-    if (text === '' && !currentImageBase64) return;
-    createMessageElement('user', text, currentImageBase64 ? imagePreview.src : null);
-    userInput.value = ''; userInput.style.height = 'auto'; 
+// --- 4. إرسال الرسالة (وخصم التوكن) ---
+function handleSend() {
+    if (!piUser) {
+        loginModal.style.display = 'flex';
+        return;
+    }
+    
+    if (tokens <= 0) {
+        buyModal.style.display = 'flex';
+        fetchLivePiPrice(); // جلب السعر عند ظهور النافذة
+        return;
+    }
+    
+    const text = userInput.value.trim();
+    if (text === '') return;
+    
+    // خصم توكن واحد
+    tokens -= 1;
+    updateTokenDisplay();
+    
+    // عرض رسالة المستخدم
+    createMessageElement('user', text);
+    userInput.value = '';
+    userInput.style.height = 'auto';
+    
+    // إرسال للـ API (نفس دالة fetchAIResponseStream السابقة)
     fetchAIResponseStream(text);
 }
 
-sendBtn.addEventListener('click', () => handleSend());
-userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }});
-userInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; });
-document.querySelectorAll('.sugg-btn').forEach(btn => { btn.addEventListener('click', () => handleSend(btn.innerText)); });
-
-function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[tag])); }
+// --- باقي وظائف الدردشة ---
+// (ضع هنا دالة createMessageElement و fetchAIResponseStream المكتوبة في الرد السابق بدون تغيير)
+// ...
+// ...
