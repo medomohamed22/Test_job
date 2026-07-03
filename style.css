@@ -1,74 +1,49 @@
-:root {
-    --bg-color: #f4f5f9; --chat-bg: #ffffff; --primary-color: #8a2be2; --primary-hover: #6a1b9a;
-    --text-main: #2d3748; --text-muted: #718096; --border-color: #e2e8f0; --sidebar-bg: #f8f9fa;
-    --msg-bot-bg: #f8f9fa; --msg-user-bg: #f3ebfa;
-}
-
-body.dark-mode {
-    --bg-color: #1e1e2f; --chat-bg: #252538; --primary-color: #9d4edd; --primary-hover: #7b2cbf;
-    --text-main: #e2e8f0; --text-muted: #a0aec0; --border-color: #3f3f5a; --sidebar-bg: #1a1a24;
-    --msg-bot-bg: #2a2a3c; --msg-user-bg: #3a2a50;
-}
+/* ... احتفظ بمتغيرات الألوان السابقة ... */
+:root { --bg-color: #f4f5f9; --chat-bg: #ffffff; --primary-color: #8a2be2; --text-main: #2d3748; --border-color: #e2e8f0; }
+body.dark-mode { --bg-color: #1e1e2f; --chat-bg: #252538; --primary-color: #9d4edd; --text-main: #e2e8f0; --border-color: #3f3f5a; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
-body { background: var(--bg-color); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
 
-/* الشريط الجانبي الأساسي */
-.sidebar { width: 260px; background: var(--sidebar-bg); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; transition: 0.3s; z-index: 100; }
-.sidebar.hidden { margin-right: -260px; }
-.sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;}
-#new-chat-btn { flex-grow: 1; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-.history-list { flex-grow: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
-.sidebar-footer { padding: 15px; border-top: 1px solid var(--border-color); }
-#export-pdf-btn { width: 100%; padding: 10px; border: 1px solid var(--primary-color); color: var(--primary-color); background: transparent; border-radius: 8px; cursor: pointer; }
+/* 🌟 الحل السحري لمشكلة الهواتف: 100dvh بدلاً من 100vh */
+body { background: var(--bg-color); color: var(--text-main); display: flex; height: 100dvh; overflow: hidden; transition: 0.3s; }
+.main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100dvh; background: var(--chat-bg); width: 100%; }
 
-/* المحتوى الرئيسي */
-.main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; background: var(--chat-bg); position: relative; width: 100%; }
-.chat-header { padding: 10px 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--chat-bg); }
-.header-right, .header-left { display: flex; align-items: center; gap: 10px; }
-.icon-btn { background: transparent; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; }
-.ai-icon-container { background: linear-gradient(135deg, var(--primary-color), #b366ff); color: white; width: 35px; height: 35px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.persona-dropdown { padding: 5px; border-radius: 8px; background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); }
-
-/* منطقة المحادثة */
+/* ... أكواد الهيدر والشات السابقة ... */
+.chat-header { padding: 10px 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
 .chat-box { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
-.suggestions-container { text-align: center; margin: auto; max-width: 600px; padding: 10px;}
-.suggestions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-.sugg-btn { padding: 12px; background: var(--msg-bot-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 12px; cursor: pointer; font-size: 13px; }
-
-/* الرسائل */
 .message { display: flex; gap: 10px; line-height: 1.6; font-size: 15px; }
 .user-message { flex-direction: row-reverse; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; font-size: 14px;}
-.user-message .avatar { background: #4a5568; }
-.bot-message .avatar { background: linear-gradient(135deg, var(--primary-color), #b366ff); }
-.text { max-width: 85%; padding: 10px 15px; border-radius: 15px; word-wrap: break-word; }
-.user-message .text { background: var(--msg-user-bg); color: var(--primary-color); border-top-left-radius: 2px; }
-.bot-message .text { background: var(--msg-bot-bg); border-top-right-radius: 2px; border: 1px solid var(--border-color); }
-pre { background: #1e1e1e !important; border-radius: 8px; padding: 12px; margin: 10px 0; direction: ltr; overflow-x: auto; font-size: 13px;}
-.user-image { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; background: var(--primary-color);}
+.text { max-width: 85%; padding: 10px 15px; border-radius: 15px; }
+.user-message .text { background: rgba(138,43,226,0.1); color: var(--primary-color); }
+.bot-message .text { background: var(--chat-bg); border: 1px solid var(--border-color); }
 
-/* منطقة الإدخال */
-.input-container { padding: 10px 15px; background: var(--chat-bg); border-top: 1px solid var(--border-color); }
-.input-box { display: flex; align-items: flex-end; gap: 5px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 5px 10px; }
-textarea { flex-grow: 1; background: transparent; border: none; color: var(--text-main); resize: none; outline: none; padding: 8px 5px; max-height: 120px; font-size: 15px; }
-.action-btn { background: transparent; color: var(--text-muted); border: none; font-size: 18px; padding: 8px; cursor: pointer; }
-.send-btn, .stop-btn { background: var(--primary-color); color: white; border: none; min-width: 35px; height: 35px; border-radius: 50%; cursor: pointer; margin-bottom: 5px; }
-.stop-btn { background: #e53e3e; }
+/* 🌟 حل مشكلة الأكواد في الوضع النهاري (إجبار التباين العالي) */
+pre { background-color: #1e1e1e !important; border-radius: 8px; padding: 15px; margin: 10px 0; direction: ltr; overflow-x: auto; border: 1px solid #333; }
+pre code { color: #d4d4d4 !important; font-family: monospace; font-size: 14px; text-shadow: none; }
 
-/* إعدادات الهواتف المحمولة (Mobile Responsive) */
-.mobile-only-btn { display: none; }
-.sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 90; }
-
-@media (max-width: 768px) {
-    .hide-on-mobile { display: none; }
-    .sidebar { position: fixed; right: 0; top: 0; height: 100vh; transform: translateX(100%); margin-right: 0; }
-    .sidebar.mobile-open { transform: translateX(0); }
-    .sidebar-overlay.active { display: block; }
-    .mobile-only-btn { display: block; background: transparent; border: none; color: var(--text-main); font-size: 20px; margin-right: 10px;}
-    .suggestions-grid { grid-template-columns: 1fr; } /* الاقتراحات تحت بعض في الموبايل */
-    .message { font-size: 14px; }
-    .text { max-width: 90%; }
-    .input-box { border-radius: 15px; padding: 3px 5px; }
-    .action-btn { padding: 5px; font-size: 16px; }
+/* 🌟 منطقة الإدخال مجهزة للآيفون والأندرويد */
+.input-container { 
+    padding: 10px 15px; 
+    background: var(--chat-bg); 
+    border-top: 1px solid var(--border-color);
+    padding-bottom: max(10px, env(safe-area-inset-bottom)); /* يمنع الكيبورد من إخفاء المربع في الآيفون */
 }
+.input-box { display: flex; align-items: flex-end; gap: 5px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 20px; padding: 5px 10px; }
+textarea { flex-grow: 1; background: transparent; border: none; color: var(--text-main); resize: none; outline: none; padding: 8px 5px; max-height: 120px; }
+.send-btn { background: var(--primary-color); color: white; border: none; min-width: 35px; height: 35px; border-radius: 50%; cursor: pointer; margin-bottom: 5px; }
+
+/* 🌟 تصميم نوافذ Pi (المودال) */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+.modal-content { background: var(--chat-bg); padding: 30px; border-radius: 20px; text-align: center; max-width: 90%; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.pi-logo { font-size: 50px; color: #fcc914; margin-bottom: 15px; }
+.modal-content h2 { margin-bottom: 10px; }
+.modal-content p { color: var(--text-muted); margin-bottom: 20px; font-size: 14px; }
+#pi-login-btn, #buy-tokens-btn { width: 100%; padding: 12px; background: #fcc914; color: #333; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+#pi-login-btn:hover { background: #e0b010; }
+.secondary-btn { width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; margin-top: 10px; cursor: pointer; }
+
+/* عداد التوكينات */
+.user-info { display: flex; align-items: center; gap: 10px; }
+#username-display { font-size: 14px; font-weight: bold; color: var(--primary-color); }
+.token-badge { background: #fcc914; color: #333; padding: 4px 10px; border-radius: 15px; font-weight: bold; font-size: 13px; }
