@@ -1,541 +1,1865 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PiBountyStore | منصة اكتشاف الثغرات</title>
-    
-    <!-- خطوط جوجل -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    
-    <!-- أيقونات FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Donate Way</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 
-    <!-- استدعاء Pi Network SDK الرسمي -->
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <style>
-        /* ==========================================
-           1. المتغيرات والأساسيات (أرجواني وأصفر)
-           ========================================== */
-        :root {
-            --bg-main: #1e1030;
-            --bg-card: #2d1947;
-            --bg-glass: rgba(45, 25, 71, 0.85);
-            --text-main: #d8cce8;
-            --text-light: #ffffff;
-            --text-muted: #a693c4;
-            --primary-yellow: #fdd835;
-            --primary-yellow-hover: #fbc02d;
-            --success: #00e676;
-            --danger: #ff1744;
-            --border: #4e3573;
-            --shadow: 0 8px 24px rgba(0,0,0,0.4);
-            --transition: all 0.3s ease;
-        }
+  <style>
+    :root{
+      --primary-purple:#7c3aed;
+      --primary-dark:#4c1d95;
+      --accent-purple:#a78bfa;
+      --accent-pink:#ec4899;
+      --bg:#f7f7fb;
+      --surface:#ffffff;
+      --surface-soft:rgba(255,255,255,.78);
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:rgba(124,58,237,.13);
+      --glass:rgba(255,255,255,.58);
+      --gold:#fbbf24;
+      --silver:#cbd5e1;
+      --bronze:#d97706;
+      --success:#10b981;
+      --danger:#ef4444;
+      --disabled:#cbd5e1;
+      --shadow-sm:0 8px 24px rgba(31,41,55,.07);
+      --shadow-md:0 18px 45px rgba(76,29,149,.13);
+      --shadow-lg:0 28px 70px rgba(76,29,149,.18);
+      --radius-xl:28px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --gradient:linear-gradient(135deg,#7c3aed 0%,#8b5cf6 45%,#ec4899 100%);
+      --gradient-soft:linear-gradient(135deg,rgba(124,58,237,.12),rgba(236,72,153,.10));
+    }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Tajawal',sans-serif}
+    html{scroll-behavior:smooth}
+    body{
+      background:
+        radial-gradient(circle at top right,rgba(124,58,237,.20),transparent 34%),
+        radial-gradient(circle at 10% 25%,rgba(236,72,153,.12),transparent 30%),
+        var(--bg);
+      min-height:100vh;
+      padding-top:95px;
+      color:var(--text);
+      overflow-x:hidden;
+      position:relative;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:auto -120px -160px auto;
+      width:420px;
+      height:420px;
+      background:var(--gradient);
+      opacity:.14;
+      border-radius:50%;
+      filter:blur(6px);
+      z-index:-1;
+    }
+    body::after{
+      content:"";
+      position:fixed;
+      inset:120px auto auto -180px;
+      width:420px;
+      height:420px;
+      background:linear-gradient(135deg,#38bdf8,#a78bfa);
+      opacity:.12;
+      border-radius:50%;
+      z-index:-1;
+    }
 
-        body {
-            font-family: 'Cairo', sans-serif;
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            line-height: 1.6;
-            padding-bottom: 80px;
-        }
+    button,input{font-family:inherit}
+    button{-webkit-tap-highlight-color:transparent}
+    img{max-width:100%}
 
-        .container { width: 90%; max-width: 1000px; margin: 0 auto; }
+    header{
+      position:fixed;
+      top:14px;
+      left:50%;
+      transform:translateX(-50%);
+      width:min(1180px,calc(100% - 28px));
+      height:72px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:0 18px;
+      background:rgba(255,255,255,.78);
+      backdrop-filter:blur(24px);
+      -webkit-backdrop-filter:blur(24px);
+      border:1px solid rgba(255,255,255,.72);
+      box-shadow:var(--shadow-sm);
+      z-index:9999;
+      border-radius:999px;
+    }
 
-        /* ==========================================
-           2. الرأس (Header) والتنقل
-           ========================================== */
-        header {
-            background-color: var(--bg-glass);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--border);
-            padding: 15px 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+    .header-right{display:flex;align-items:center;gap:12px}
+    .menu-btn{
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      gap:5px;
+      padding:12px;
+      border-radius:18px;
+      transition:.25s;
+      background:rgba(124,58,237,.08);
+    }
+    .menu-btn:hover{background:rgba(124,58,237,.14);transform:translateY(-1px)}
+    .menu-btn span{width:24px;height:3px;background:var(--primary-purple);border-radius:99px}
 
-        .navbar { display: flex; justify-content: space-between; align-items: center; }
+    .logo{
+      font-size:1.65rem;
+      font-weight:800;
+      color:var(--primary-purple);
+      cursor:pointer;
+      letter-spacing:-.5px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .logo::before{
+      content:"♥";
+      width:34px;
+      height:34px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:50%;
+      color:white;
+      background:var(--gradient);
+      box-shadow:0 8px 20px rgba(124,58,237,.25);
+      font-size:1rem;
+    }
 
-        .logo {
-            font-size: 24px;
-            font-weight: 900;
-            color: var(--text-light);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .logo i, .logo span { color: var(--primary-yellow); }
+    .auth-section{display:flex;align-items:center;gap:10px}
+    #login-button{
+      background:var(--gradient)!important;
+      color:white;
+      border:none;
+      padding:12px 24px;
+      border-radius:999px;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow:0 12px 26px rgba(124,58,237,.24);
+      transition:.25s;
+    }
+    #login-button:hover{transform:translateY(-2px);box-shadow:0 18px 34px rgba(124,58,237,.30)}
 
-        .desktop-nav { display: none; gap: 20px; }
-        .desktop-nav button {
-            background: none; border: none; color: var(--text-muted);
-            font-family: 'Cairo'; font-size: 16px; font-weight: 600;
-            cursor: pointer; transition: var(--transition);
-        }
-        .desktop-nav button:hover, .desktop-nav button.active { color: var(--primary-yellow); }
+    .user-pill{
+      display:none;
+      align-items:center;
+      gap:8px;
+      background:white;
+      padding:7px 14px;
+      border-radius:999px;
+      box-shadow:var(--shadow-sm);
+      border:1px solid var(--border);
+      color:var(--primary-purple);
+      font-weight:700;
+      font-size:.9rem;
+      cursor:pointer;
+      transition:.25s;
+    }
+    .user-pill:hover{background:var(--primary-purple);color:white;transform:translateY(-1px)}
 
-        /* ==========================================
-           3. الأزرار
-           ========================================== */
-        .btn {
-            padding: 12px 24px; border-radius: 8px; font-weight: 700;
-            cursor: pointer; transition: var(--transition); border: none;
-            font-family: 'Cairo', sans-serif; font-size: 15px;
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-primary { background-color: var(--primary-yellow); color: var(--bg-main); }
-        .btn-primary:hover { background-color: var(--primary-yellow-hover); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(253, 216, 53, 0.3); }
-        .btn-outline { background-color: transparent; border: 1px solid var(--primary-yellow); color: var(--primary-yellow); }
-        .btn-outline:hover { background-color: rgba(253, 216, 53, 0.1); }
-        .btn-full { width: 100%; margin-top: 15px; }
+    .container{max-width:1180px;margin:0 auto;padding:0 20px}
 
-        /* ==========================================
-           4. الصفحات والبطاقات
-           ========================================== */
-        .page { display: none; animation: fadeIn 0.4s ease-in-out; padding-top: 30px; }
-        .page.active { display: block; }
+    .hero{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:28px;
+      align-items:center;
+      margin:22px 0 34px;
+    }
+    .hero-copy{
+      background:var(--surface-soft);
+      border:1px solid rgba(255,255,255,.75);
+      backdrop-filter:blur(22px);
+      border-radius:36px;
+      padding:38px;
+      box-shadow:var(--shadow-md);
+      position:relative;
+      overflow:hidden;
+    }
+    .hero-copy::after{
+      content:"";
+      position:absolute;
+      width:190px;
+      height:190px;
+      border-radius:50%;
+      background:var(--gradient);
+      opacity:.10;
+      top:-75px;
+      right:-60px;
+    }
+    .eyebrow{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      background:rgba(124,58,237,.10);
+      color:var(--primary-purple);
+      padding:8px 14px;
+      border-radius:999px;
+      font-weight:800;
+      margin-bottom:14px;
+      font-size:.95rem;
+    }
+    .hero-title{
+      text-align:start;
+      font-size:clamp(2rem,5vw,4.2rem);
+      color:#111827;
+      margin-bottom:16px;
+      line-height:1.08;
+      letter-spacing:-1px;
+      font-weight:800;
+    }
+    .hero-subtitle{
+      color:var(--muted);
+      font-size:1.08rem;
+      line-height:1.8;
+      max-width:680px;
+      margin-bottom:24px;
+    }
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .primary-link,.secondary-link{
+      border:none;
+      cursor:pointer;
+      text-decoration:none;
+      padding:13px 20px;
+      border-radius:999px;
+      font-weight:800;
+      transition:.25s;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .primary-link{background:var(--gradient);color:white;box-shadow:0 14px 30px rgba(124,58,237,.25)}
+    .secondary-link{background:white;color:var(--primary-purple);border:1px solid var(--border)}
+    .primary-link:hover,.secondary-link:hover{transform:translateY(-2px)}
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .hero-panel{
+      display:grid;
+      gap:14px;
+    }
+    .mini-stat{
+      background:white;
+      border:1px solid var(--border);
+      border-radius:28px;
+      padding:24px;
+      box-shadow:var(--shadow-sm);
+      position:relative;
+      overflow:hidden;
+    }
+    .mini-stat::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:var(--gradient-soft);
+      opacity:.8;
+      pointer-events:none;
+    }
+    .mini-stat > *{position:relative}
+    .mini-icon{
+      width:46px;height:46px;border-radius:18px;background:var(--gradient);color:white;
+      display:flex;align-items:center;justify-content:center;font-size:1.35rem;margin-bottom:12px;
+    }
+    .mini-value{font-size:1.8rem;font-weight:800;color:var(--primary-dark)}
+    .mini-label{color:var(--muted);font-weight:700}
 
-        .section-header { margin-bottom: 30px; text-align: center; }
-        .section-header h2 { font-size: 28px; color: var(--text-light); }
-        .section-header p { color: var(--text-muted); font-size: 15px; margin-top: 5px; }
+    .trust-row{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin-bottom:30px;
+    }
+    .trust-card{
+      background:rgba(255,255,255,.76);
+      backdrop-filter:blur(16px);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:24px;
+      padding:18px;
+      box-shadow:var(--shadow-sm);
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .trust-card span{
+      width:38px;height:38px;border-radius:15px;background:rgba(124,58,237,.1);
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .trust-card strong{display:block;color:#111827;margin-bottom:4px}
+    .trust-card p{font-size:.92rem;color:var(--muted);line-height:1.55}
 
-        .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      margin:24px 0 18px;
+      flex-wrap:wrap;
+    }
+    .section-title{font-size:1.85rem;font-weight:800;color:#111827}
+    .section-desc{color:var(--muted);margin-top:4px}
 
-        .card {
-            background-color: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; overflow: hidden; transition: var(--transition);
-            display: flex; flex-direction: column;
-        }
-        .card:hover { transform: translateY(-5px); border-color: var(--primary-yellow); box-shadow: var(--shadow); }
-        .card-img-container { position: relative; width: 100%; height: 200px; }
-        .card-main-img { width: 100%; height: 100%; object-fit: cover; }
-        .bounty-tag {
-            position: absolute; top: 15px; left: 15px; background-color: rgba(0, 0, 0, 0.7);
-            color: var(--primary-yellow); padding: 6px 12px; border-radius: 8px; font-weight: bold;
-            border: 1px solid var(--primary-yellow); display: flex; align-items: center; gap: 5px;
-        }
-        .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
-        .card h3 { color: var(--text-light); margin-bottom: 10px; font-size: 20px; }
-        .card p { font-size: 14px; margin-bottom: 20px; color: var(--text-muted); flex-grow: 1; }
+    .filter-container{display:flex;justify-content:center;gap:10px;margin-bottom:26px;flex-wrap:wrap}
+    .filter-btn{
+      padding:10px 19px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:white;
+      color:var(--primary-purple);
+      font-weight:800;
+      font-size:.95rem;
+      cursor:pointer;
+      transition:.25s;
+      box-shadow:0 6px 16px rgba(31,41,55,.04);
+    }
+    .filter-btn.active,.filter-btn:hover{
+      background:var(--gradient);
+      color:white;
+      transform:translateY(-2px);
+      box-shadow:0 12px 24px rgba(124,58,237,.22);
+    }
 
-        /* ==========================================
-           5. النماذج ورفع الملفات
-           ========================================== */
-        .form-card {
-            background-color: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: var(--shadow);
-        }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--text-main); }
-        .form-control {
-            width: 100%; padding: 14px; background-color: var(--bg-main); border: 1px solid var(--border);
-            color: var(--text-light); border-radius: 8px; font-family: 'Cairo', sans-serif; font-size: 15px;
-        }
-        .form-control:focus { outline: none; border-color: var(--primary-yellow); box-shadow: 0 0 0 3px rgba(253, 216, 53, 0.1); }
+    .campaigns-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
+      gap:28px;
+    }
 
-        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .file-upload-wrapper input[type="file"] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
-        .file-upload-btn {
-            display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px;
-            background-color: rgba(255,255,255,0.05); border: 1px dashed var(--text-muted); border-radius: 8px;
-            color: var(--text-muted); cursor: pointer; transition: var(--transition);
-        }
-        .file-upload-wrapper:hover .file-upload-btn { border-color: var(--primary-yellow); color: var(--primary-yellow); }
+    .card{
+      background:rgba(255,255,255,.92);
+      border-radius:32px;
+      padding:18px;
+      transition:.35s;
+      border:1px solid rgba(255,255,255,.8);
+      box-shadow:var(--shadow-sm);
+      text-align:start;
+      position:relative;
+      overflow:hidden;
+    }
+    .card:hover{transform:translateY(-8px);box-shadow:var(--shadow-lg)}
+    .campaign-img{
+      width:100%;
+      height:205px;
+      object-fit:cover;
+      border-radius:26px;
+      margin-bottom:18px;
+      background:#eef2ff;
+    }
+    .category-chip{
+      position:absolute;
+      top:28px;
+      left:28px;
+      background:rgba(255,255,255,.86);
+      backdrop-filter:blur(14px);
+      color:var(--primary-purple);
+      border:1px solid rgba(255,255,255,.75);
+      border-radius:999px;
+      padding:7px 12px;
+      font-weight:800;
+      font-size:.82rem;
+      box-shadow:0 8px 20px rgba(0,0,0,.08);
+    }
+    html[dir="rtl"] .category-chip{left:auto;right:28px}
+    .card h3{font-size:1.25rem;color:#111827;margin:0 4px 8px;font-weight:800;line-height:1.45}
+    .campaign-meta{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      margin:12px 4px 6px;
+      font-weight:800;
+      color:var(--muted);
+      font-size:.95rem;
+    }
+    .campaign-meta strong{color:var(--primary-purple)}
+    .progress-bar{
+      width:100%;
+      height:13px;
+      background:#ede9fe;
+      border-radius:99px;
+      overflow:hidden;
+      margin:14px 0 12px;
+    }
+    .progress-fill{
+      height:100%;
+      background:var(--gradient);
+      transition:1.2s;
+      border-radius:99px;
+    }
+    .progress-note{
+      display:flex;
+      justify-content:space-between;
+      color:var(--muted);
+      font-size:.86rem;
+      margin-bottom:16px;
+      font-weight:700;
+    }
 
-        /* ==========================================
-           6. لوحة تحكم المطور (جديد)
-           ========================================== */
-        .dashboard-container { max-width: 800px; margin: 0 auto; }
-        .dashboard-section { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 30px; }
-        .dashboard-section h3 { color: var(--primary-yellow); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        
-        .report-item {
-            background-color: var(--bg-main); border-radius: 8px; padding: 15px; margin-bottom: 15px;
-            border-right: 4px solid var(--primary-yellow); display: flex; gap: 15px; align-items: flex-start;
-        }
-        .report-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; }
-        .report-content { flex-grow: 1; }
-        .report-content h4 { color: var(--text-light); margin-bottom: 5px; font-size: 16px; }
-        .report-content p { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4; }
-        .report-meta { font-size: 12px; color: var(--primary-yellow); background: rgba(253,216,53,0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;}
-        
-        .empty-state { text-align: center; color: var(--text-muted); padding: 30px; }
-        
-        .auth-hidden { display: none !important; }
+    .quick-amounts{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px}
+    .quick-btn{
+      flex:1;
+      padding:10px 5px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:rgba(124,58,237,.06);
+      color:var(--primary-purple);
+      font-weight:800;
+      cursor:pointer;
+      transition:.2s;
+      font-size:.9rem;
+    }
+    .quick-btn:hover{background:var(--primary-purple);color:white;transform:translateY(-1px)}
 
-        /* ==========================================
-           7. شريط التنقل السفلي والاشعارات
-           ========================================== */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 70px;
-            background-color: var(--bg-glass); backdrop-filter: blur(10px); border-top: 1px solid var(--border);
-            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
-        }
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: var(--text-muted); background: none; border: none; cursor: pointer;
-            font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 600;
-            flex: 1; height: 100%; transition: var(--transition); gap: 5px;
-        }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--primary-yellow); }
+    .amount-input{
+      width:100%;
+      padding:15px;
+      border-radius:18px;
+      border:1px solid #e5e7eb;
+      margin-bottom:12px;
+      font-size:1rem;
+      outline:none;
+      text-align:center;
+      transition:.25s;
+      background:#fafafa;
+      font-weight:700;
+      color:#111827;
+    }
+    .amount-input:focus{
+      border-color:var(--primary-purple);
+      box-shadow:0 0 0 4px rgba(124,58,237,.10);
+      background:white;
+    }
 
-        .toast-container {
-            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-            z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px;
-        }
-        .toast {
-            background-color: var(--bg-card); border-left: 4px solid var(--primary-yellow);
-            color: var(--text-light); padding: 15px 25px; border-radius: 8px; box-shadow: var(--shadow);
-            display: flex; align-items: center; gap: 10px; animation: slideUp 0.3s ease, fadeOut 0.5s ease 3s forwards;
-        }
+    .btn-group{display:flex;flex-direction:column;gap:10px}
+    .donate-btn{
+      width:100%;
+      padding:15px;
+      border-radius:18px;
+      border:none;
+      background:var(--gradient);
+      color:white;
+      font-weight:800;
+      cursor:pointer;
+      transition:.25s;
+      font-size:1.04rem;
+      box-shadow:0 12px 24px rgba(124,58,237,.22);
+    }
+    .donate-btn:hover{transform:translateY(-2px)}
+    .donate-btn:disabled{background:var(--disabled);cursor:not-allowed;transform:none;box-shadow:none}
 
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+    .result-btn{
+      width:100%;
+      padding:12px;
+      border-radius:18px;
+      border:1px solid rgba(16,185,129,.35);
+      color:var(--success);
+      font-weight:800;
+      cursor:pointer;
+      background:rgba(16,185,129,.06);
+      transition:.25s;
+    }
+    .result-btn:hover{background:var(--success);color:white;transform:translateY(-1px)}
 
-        @media (min-width: 768px) {
-            .bottom-nav { display: none; }
-            .desktop-nav { display: flex; }
-            body { padding-bottom: 0; }
-            .toast-container { bottom: 30px; left: 30px; transform: none; }
-        }
-    </style>
+    .heroes-section{
+      margin-top:70px;
+      padding:34px 22px;
+      background:rgba(255,255,255,.72);
+      backdrop-filter:blur(20px);
+      border-radius:36px;
+      border:1px solid rgba(255,255,255,.8);
+      text-align:center;
+      margin-bottom:45px;
+      box-shadow:var(--shadow-md);
+    }
+    .heroes-list{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+      gap:18px;
+      margin-top:26px;
+    }
+    .hero-card{
+      background:white;
+      padding:23px 18px;
+      border-radius:26px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      transition:.3s;
+      border:1px solid #f1f5f9;
+      position:relative;
+      box-shadow:var(--shadow-sm);
+    }
+    .hero-card:hover{transform:translateY(-5px)}
+    .hero-avatar{
+      width:64px;
+      height:64px;
+      border-radius:22px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:1.6rem;
+      font-weight:800;
+      color:white;
+      background:var(--gradient);
+      box-shadow:0 12px 25px rgba(124,58,237,.18);
+    }
+    .rank-1 .hero-avatar{background:linear-gradient(135deg,#f59e0b,#fbbf24)}
+    .rank-2 .hero-avatar{background:linear-gradient(135deg,#94a3b8,#cbd5e1)}
+    .rank-3 .hero-avatar{background:linear-gradient(135deg,#b45309,#f59e0b)}
+    .hero-name{font-weight:800;color:#111827;font-size:1.05rem}
+    .hero-amount{color:var(--primary-purple);font-weight:800;font-size:1.15rem}
+    .rank-tag{
+      position:absolute;
+      top:-10px;
+      background:#111827;
+      color:white;
+      padding:4px 12px;
+      border-radius:999px;
+      font-size:.73rem;
+      font-weight:800;
+    }
+
+    .side-drawer{
+      position:fixed;
+      top:0;
+      right:-100%;
+      width:365px;
+      height:100%;
+      background:rgba(255,255,255,.94);
+      backdrop-filter:blur(24px);
+      z-index:10002;
+      transition:.45s cubic-bezier(.77,.2,.05,1);
+      box-shadow:-12px 0 38px rgba(0,0,0,.12);
+      padding:28px;
+      overflow-y:auto;
+    }
+    html[dir="rtl"] .side-drawer{right:auto;left:-100%;box-shadow:12px 0 38px rgba(0,0,0,.12)}
+    .side-drawer.active{right:0}
+    html[dir="rtl"] .side-drawer.active{left:0;right:auto}
+    .drawer-overlay{
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(15,23,42,.45);
+      z-index:10001;
+      display:none;
+      backdrop-filter:blur(3px);
+    }
+    .drawer-title{
+      color:var(--primary-purple);
+      font-weight:800;
+      margin-bottom:18px;
+      border-bottom:1px solid #ede9fe;
+      padding-bottom:12px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .live-indicator{
+      display:inline-block;
+      width:9px;
+      height:9px;
+      background-color:var(--success);
+      border-radius:50%;
+      animation:blink 1.5s infinite;
+    }
+    @keyframes blink{
+      0%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.55)}
+      70%{opacity:.55;box-shadow:0 0 0 8px rgba(16,185,129,0)}
+      100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,0)}
+    }
+
+    .dashboard-card{
+      background:
+        radial-gradient(circle at top right,rgba(255,255,255,.28),transparent 35%),
+        var(--gradient);
+      color:white;
+      padding:20px;
+      border-radius:30px;
+      margin-bottom:20px;
+      box-shadow:0 22px 48px rgba(124,58,237,.28);
+      overflow:hidden;
+      position:relative;
+    }
+    .dashboard-card::after{
+      content:"";
+      position:absolute;
+      width:150px;
+      height:150px;
+      border-radius:50%;
+      background:rgba(255,255,255,.12);
+      bottom:-70px;
+      left:-55px;
+    }
+    .dashboard-card > *{position:relative;z-index:1}
+    .dashboard-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom:16px;
+    }
+    .dashboard-kicker{
+      display:inline-flex;
+      padding:5px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.16);
+      font-size:.78rem;
+      font-weight:800;
+      margin-bottom:10px;
+    }
+    .dashboard-total{
+      display:block;
+      font-size:2.05rem;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:-.5px;
+    }
+    .dashboard-caption{
+      display:block;
+      opacity:.86;
+      font-weight:700;
+      margin-top:6px;
+      font-size:.92rem;
+    }
+    .dashboard-ring{
+      width:76px;
+      height:76px;
+      border-radius:50%;
+      flex:0 0 76px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:conic-gradient(rgba(255,255,255,.95) 0deg, rgba(255,255,255,.20) 0deg);
+      box-shadow:inset 0 0 0 8px rgba(255,255,255,.17);
+    }
+    .dashboard-ring span{
+      width:54px;
+      height:54px;
+      border-radius:50%;
+      background:rgba(76,29,149,.52);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:.95rem;
+      backdrop-filter:blur(10px);
+    }
+    .dashboard-progress{
+      height:10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.22);
+      overflow:hidden;
+      margin-bottom:9px;
+    }
+    .dashboard-progress-fill{
+      height:100%;
+      border-radius:999px;
+      background:rgba(255,255,255,.92);
+      transition:1s ease;
+    }
+    .dashboard-progress-row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:.84rem;
+      opacity:.92;
+      font-weight:800;
+      margin-bottom:15px;
+    }
+    .stats-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:12px;
+    }
+    .stat-tile{
+      background:rgba(255,255,255,.15);
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:20px;
+      padding:12px;
+      backdrop-filter:blur(12px);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-height:95px;
+      justify-content:center;
+    }
+    .stat-icon{
+      width:32px;
+      height:32px;
+      border-radius:12px;
+      background:rgba(255,255,255,.17);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin-bottom:4px;
+    }
+    .stat-number{
+      font-size:1.22rem;
+      font-weight:900;
+      line-height:1;
+    }
+    .stat-name{
+      font-size:.78rem;
+      opacity:.84;
+      font-weight:800;
+    }
+    .latest-donation-card{
+      margin-top:12px;
+      background:rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:20px;
+      padding:13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      backdrop-filter:blur(12px);
+    }
+    .latest-label{
+      opacity:.84;
+      font-weight:800;
+      font-size:.82rem;
+    }
+    .latest-donation-card strong{
+      font-size:.94rem;
+      text-align:end;
+    }
+
+    .stats-card{
+      background:var(--gradient);
+      color:white;
+      padding:22px;
+      border-radius:26px;
+      margin-bottom:20px;
+      text-align:center;
+      box-shadow:0 18px 36px rgba(124,58,237,.24);
+    }
+    .stat-item{margin:10px 0}
+    .stat-value{font-size:1.65rem;font-weight:800;display:block}
+    .stat-label{font-size:.92rem;opacity:.9}
+
+    .modal{
+      display:none;
+      position:fixed;
+      z-index:10000;
+      left:0;
+      top:0;
+      width:100%;
+      height:100%;
+      background:rgba(15,23,42,.72);
+      backdrop-filter:blur(8px);
+      justify-content:center;
+      align-items:center;
+      padding:18px;
+    }
+    .modal-content{
+      background:white;
+      padding:32px 22px 22px;
+      border-radius:34px;
+      max-width:92%;
+      text-align:center;
+      position:relative;
+      box-shadow:var(--shadow-lg);
+      border:1px solid rgba(255,255,255,.7);
+    }
+    .modal-img{max-width:100%;max-height:60vh;border-radius:22px}
+    .close-modal{
+      position:absolute;
+      top:14px;
+      right:14px;
+      width:36px;
+      height:36px;
+      background:rgba(124,58,237,.09);
+      color:var(--primary-purple);
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      font-size:1.1rem;
+      transition:.25s;
+      z-index:100;
+      font-weight:800;
+    }
+    .close-modal:hover{background:var(--primary-purple);color:white}
+    html[dir="rtl"] .close-modal{right:auto;left:14px}
+
+    #custom-alert{
+      position:fixed;
+      bottom:30px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#111827;
+      color:white;
+      padding:15px 28px;
+      border-radius:999px;
+      display:none;
+      z-index:10004;
+      box-shadow:0 16px 32px rgba(0,0,0,.22);
+      font-weight:800;
+      text-align:center;
+      max-width:calc(100% - 30px);
+    }
+    .loader{
+      display:none;
+      border:4px solid #ede9fe;
+      border-top:4px solid var(--primary-purple);
+      border-radius:50%;
+      width:42px;
+      height:42px;
+      animation:spin 1s linear infinite;
+      margin:20px auto;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .profile-modal-content{
+      max-width:420px;
+      width:92%;
+      max-height:86vh;
+      overflow-y:auto;
+    }
+    .profile-modal-content::-webkit-scrollbar{width:5px}
+    .profile-modal-content::-webkit-scrollbar-track{background:transparent}
+    .profile-modal-content::-webkit-scrollbar-thumb{background:#ddd6fe;border-radius:10px}
+    .profile-avatar{
+      width:76px;
+      height:76px;
+      border-radius:26px;
+      background:var(--gradient);
+      color:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:2.1rem;
+      font-weight:800;
+      margin:0 auto 10px;
+      box-shadow:0 14px 26px rgba(124,58,237,.23);
+    }
+    .profile-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+    .profile-stat-box{background:rgba(124,58,237,.06);padding:14px;border-radius:18px;border:1px solid var(--border)}
+    .profile-stat-value{font-size:1.35rem;font-weight:800;color:var(--primary-purple)}
+    .profile-stat-label{font-size:.8rem;color:var(--muted);margin-top:5px;font-weight:700}
+    .history-list{
+      max-height:185px;
+      overflow-y:auto;
+      overflow-x:hidden;
+      background:#f8fafc;
+      border-radius:18px;
+      padding:10px;
+      border:1px solid #eef2f7;
+      margin-bottom:5px;
+    }
+    .history-list::-webkit-scrollbar{width:6px}
+    .history-list::-webkit-scrollbar-track{background:#f1f5f9;border-radius:10px}
+    .history-list::-webkit-scrollbar-thumb{background:var(--accent-purple);border-radius:10px}
+    html[dir="rtl"] .history-list{text-align:right}
+    html[dir="ltr"] .history-list{text-align:left}
+    .history-item{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      padding:12px 10px;
+      border-bottom:1px solid #eaeaea;
+      font-size:.94rem;
+      align-items:center;
+    }
+    .history-item:last-child{border-bottom:none}
+    .history-item-title{font-weight:800;color:#111827}
+    .history-item-amount{color:var(--success);font-weight:800;background:rgba(16,185,129,.1);padding:4px 10px;border-radius:999px;white-space:nowrap}
+
+
+    .profile-badge-box{
+      grid-column:1 / -1;
+      background:linear-gradient(135deg,rgba(124,58,237,.10),rgba(236,72,153,.08));
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .badge-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      padding:7px 12px;
+      border-radius:999px;
+      background:rgba(124,58,237,.09);
+      color:var(--primary-purple);
+      font-weight:900;
+      font-size:.82rem;
+      border:1px solid rgba(124,58,237,.12);
+      white-space:nowrap;
+    }
+    .badge-pill.gold{background:rgba(251,191,36,.18);color:#92400e;border-color:rgba(251,191,36,.25)}
+    .badge-pill.silver{background:rgba(203,213,225,.28);color:#334155;border-color:rgba(148,163,184,.26)}
+    .badge-pill.bronze{background:rgba(217,119,6,.14);color:#92400e;border-color:rgba(217,119,6,.22)}
+    .updates-box{
+      background:#f8fafc;
+      border:1px solid #eef2f7;
+      border-radius:20px;
+      padding:13px;
+      margin:14px 0;
+    }
+    .updates-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color:#111827;
+      font-weight:900;
+      font-size:.92rem;
+      margin-bottom:10px;
+    }
+    .updates-list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .update-item{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      color:var(--muted);
+      font-size:.88rem;
+      line-height:1.55;
+      font-weight:700;
+    }
+    .update-dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--success);
+      flex:0 0 8px;
+      margin-top:7px;
+      box-shadow:0 0 0 4px rgba(16,185,129,.10);
+    }
+    .share-row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-top:10px;
+    }
+    .share-btn{
+      padding:11px 10px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:white;
+      color:var(--primary-purple);
+      font-weight:900;
+      cursor:pointer;
+      transition:.25s;
+      font-size:.9rem;
+    }
+    .share-btn:hover{background:rgba(124,58,237,.08);transform:translateY(-1px)}
+
+    .lang-ball{
+      position:fixed;
+      bottom:22px;
+      right:22px;
+      width:56px;
+      height:56px;
+      border-radius:50%;
+      border:1px solid rgba(255,255,255,.75);
+      background:rgba(255,255,255,.78);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      box-shadow:0 14px 35px rgba(0,0,0,.14);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      z-index:10003;
+      transition:transform .2s ease;
+      user-select:none;
+    }
+    .lang-ball:active{transform:scale(.95)}
+    .lang-ball span{font-weight:900;color:var(--primary-purple);letter-spacing:.5px}
+    html[dir="rtl"] .lang-ball{right:22px}
+
+    .empty-state{
+      grid-column:1/-1;
+      text-align:center;
+      padding:44px 20px;
+      color:var(--muted);
+      background:white;
+      border-radius:28px;
+      border:1px solid #eef2f7;
+      box-shadow:var(--shadow-sm);
+      font-weight:800;
+    }
+
+    @media (max-width:850px){
+      .hero{grid-template-columns:1fr}
+      .trust-row{grid-template-columns:1fr}
+      .hero-copy{padding:28px}
+      header{height:66px}
+    }
+    @media (max-width:480px){
+      body{padding-top:88px}
+      header{top:10px;width:calc(100% - 18px);height:62px;padding:0 10px}
+      .logo{font-size:1.25rem}
+      .logo::before{width:30px;height:30px}
+      .menu-btn{padding:9px}
+      #login-button{padding:10px 17px}
+      .side-drawer{width:88%;padding:24px 18px}
+      .user-pill{font-size:.76rem;padding:7px 10px}
+      .hero-copy{border-radius:28px;padding:24px 20px}
+      .hero-title{font-size:2.15rem}
+      .hero-subtitle{font-size:.98rem}
+      .hero-actions a,.hero-actions button{width:100%;justify-content:center}
+      .campaigns-grid{grid-template-columns:1fr;gap:22px}
+      .lang-ball{width:52px;height:52px;bottom:18px;right:18px}
+      .profile-stats-grid{grid-template-columns:1fr}
+      .filter-container{gap:8px}
+      .filter-btn{padding:8px 14px;font-size:.86rem}
+      .section-title{font-size:1.45rem}
+    }
+  </style>
 </head>
 <body>
 
-    <!-- الرأس والتنقل -->
-    <header>
-        <div class="container navbar">
-            <div class="logo">
-                <i class="fa-brands fa-pied-piper-alt"></i> 
-                Pi<span>Bounty</span>
-            </div>
-            
-            <div class="desktop-nav">
-                <button class="active" onclick="switchPage('pageExplore', this, 'navExplore')"><i class="fa-solid fa-compass"></i> استكشاف</button>
-                <button onclick="switchPage('pageUpload', this, 'navUpload')"><i class="fa-solid fa-cloud-arrow-up"></i> رفع مشروع</button>
-                <button onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> إبلاغ</button>
-                <!-- يظهر فقط بعد تسجيل الدخول -->
-                <button id="navDashboardDesktop" class="auth-hidden" onclick="switchPage('pageDashboard', this, 'navDashboardMobile')"><i class="fa-solid fa-chart-line"></i> لوحتي</button>
-            </div>
+  <div id="custom-alert"></div>
+  <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
 
-            <!-- زر تسجيل الدخول -->
-            <button class="btn btn-outline" id="btnConnectPi">
-                <i class="fa-brands fa-pied-piper-alt"></i> Pi Login
-            </button>
-        </div>
-    </header>
-
-    <!-- المحتوى الرئيسي -->
-    <main class="container">
-
-        <!-- 1. صفحة الاستكشاف -->
-        <div id="pageExplore" class="page active">
-            <div class="section-header">
-                <h2>برامج مكافآت الثغرات النشطة</h2>
-                <p>ابحث عن الأخطاء، أبلغ عنها، واكسب عملات Pi.</p>
-            </div>
-            <div class="projects-grid" id="projectsGrid"></div>
+  <div id="side-drawer" class="side-drawer">
+    <h2 class="drawer-title">
+      <span class="live-indicator"></span>
+      <span data-i18n="drawer_stats_title">📊 Platform Stats</span>
+    </h2>
+    <div id="stats-container">
+      <div class="dashboard-card">
+        <div class="dashboard-top">
+          <div>
+            <span class="dashboard-kicker" data-i18n="stats_live_label">Live overview</span>
+            <strong id="total-pi-stats" class="dashboard-total">0.00 π</strong>
+            <span class="dashboard-caption" data-i18n="stats_total_donations">Total Donations</span>
+          </div>
+          <div class="dashboard-ring">
+            <span id="stats-progress-percent">0%</span>
+          </div>
         </div>
 
-        <!-- 2. صفحة رفع مشروع -->
-        <div id="pageUpload" class="page">
-            <div class="section-header">
-                <h2>بوابة المطورين</h2>
-                <p>قم بإدراج موقعك لتلقي تقارير أمنية من المجتمع</p>
-            </div>
-            <div class="form-card">
-                <form id="uploadForm">
-                    <div class="form-group">
-                        <label>اسم المشروع</label>
-                        <input type="text" class="form-control" id="projName" required placeholder="مثال: متجر إلكتروني">
-                    </div>
-                    <div class="form-group">
-                        <label>رابط المنصة (URL)</label>
-                        <input type="url" class="form-control" id="projUrl" required placeholder="https://example.com">
-                    </div>
-                    <div class="form-group">
-                        <label>المكافأة المرصودة (Pi)</label>
-                        <input type="number" class="form-control" id="projBounty" required placeholder="مثال: 100">
-                    </div>
-                    <div class="form-group">
-                        <label>صورة الواجهة الرئيسية</label>
-                        <div class="file-upload-wrapper">
-                            <div class="file-upload-btn"><i class="fa-solid fa-image"></i> اختر صورة الغلاف</div>
-                            <input type="file" id="projMainImg" accept="image/*" required onchange="updateFileName(this)">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>نطاق الفحص (Scope & Rules)</label>
-                        <textarea class="form-control" id="projDesc" rows="4" required placeholder="حدد ما هو مسموح وما هو ممنوع أثناء الفحص..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-shield-halved"></i> نشر المشروع</button>
-                </form>
-            </div>
+        <div class="dashboard-progress">
+          <div id="stats-progress-fill" class="dashboard-progress-fill" style="width:0%"></div>
+        </div>
+        <div class="dashboard-progress-row">
+          <span data-i18n="stats_goal_progress">Overall goal progress</span>
+          <strong id="stats-total-goal">0.00 π</strong>
         </div>
 
-        <!-- 3. صفحة الإبلاغ -->
-        <div id="pageReport" class="page">
-            <div class="section-header">
-                <h2>اكتشاف الثغرات والأخطاء</h2>
-                <p>ارفع صورة المشكلة ووصفها ليتم مراجعتها</p>
-            </div>
-            <div class="form-card">
-                <form id="reportForm">
-                    <div class="form-group">
-                        <label>المشروع المستهدف</label>
-                        <select class="form-control" id="reportTarget" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label>صورة للثغرة أو الخطأ</label>
-                        <div class="file-upload-wrapper">
-                            <div class="file-upload-btn" id="bugImageBtn"><i class="fa-solid fa-image"></i> اختر صورة الخطأ</div>
-                            <input type="file" id="bugImage" accept="image/*" required onchange="updateFileName(this)">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>وصف الثغرة أو الخطأ</label>
-                        <textarea class="form-control" id="bugDescription" rows="5" required placeholder="اشرح المشكلة وكيفية الوصول إليها..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>عنوان محفظة Pi الخاصة بك</label>
-                        <input type="text" class="form-control" id="piAddress" required placeholder="GABCD...1234">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-paper-plane"></i> إرسال التقرير</button>
-                </form>
-            </div>
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <span class="stat-icon">🎯</span>
+            <span id="total-campaigns-stats" class="stat-number">0</span>
+            <span class="stat-name" data-i18n="stats_total_campaigns">Campaigns</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-icon">👥</span>
+            <span id="unique-donors-stats" class="stat-number">0</span>
+            <span class="stat-name" data-i18n="stats_unique_donors">Donors</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-icon">💜</span>
+            <span id="total-donations-count-stats" class="stat-number">0</span>
+            <span class="stat-name" data-i18n="stats_donations_count">Donations</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-icon">📊</span>
+            <span id="avg-donation-stats" class="stat-number">0.00 π</span>
+            <span class="stat-name" data-i18n="stats_avg_donation">Avg. gift</span>
+          </div>
         </div>
 
-        <!-- 4. لوحة تحكم المطور (Dashboard) -->
-        <div id="pageDashboard" class="page">
-            <div class="section-header">
-                <h2>لوحة تحكم المطور</h2>
-                <p>أدر مشاريعك وراجع تقارير الثغرات الواردة</p>
-            </div>
-            
-            <div class="dashboard-container">
-                <div class="dashboard-section">
-                    <h3><i class="fa-solid fa-list-check"></i> مشاريعي المنشورة</h3>
-                    <div id="myProjectsList"></div>
-                </div>
-
-                <div class="dashboard-section">
-                    <h3><i class="fa-solid fa-shield-virus"></i> التقارير الواردة</h3>
-                    <div id="incomingReportsList"></div>
-                </div>
-            </div>
+        <div class="latest-donation-card">
+          <span class="latest-label" data-i18n="stats_latest_donation">Latest donation</span>
+          <strong id="latest-donation-stats">—</strong>
         </div>
+      </div>
+    </div>
+    <h3 class="drawer-title" style="font-size:1.1rem;margin-top:20px;">
+      <span data-i18n="drawer_donors_title">👤 All Donors Log</span>
+    </h3>
+    <div id="all-donors-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+  </div>
 
-    </main>
+  <div id="image-modal" class="modal" onclick="closeImage()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="close-modal" onclick="closeImage()">✕</div>
+      <h3 id="modal-title" style="margin-bottom:15px;color:var(--primary-purple);" data-i18n="modal_title_default">Your Donation Impact</h3>
+      <img id="modal-img-src" src="" class="modal-img" alt="Donation impact">
+    </div>
+  </div>
 
-    <!-- شريط التنقل السفلي للموبايل -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" id="navExplore" onclick="switchPage('pageExplore', this, 'navExplore')"><i class="fa-solid fa-compass"></i> استكشاف</button>
-        <button class="nav-item" id="navUpload" onclick="switchPage('pageUpload', this, 'navUpload')"><i class="fa-solid fa-cloud-arrow-up"></i> مشروع</button>
-        <button class="nav-item" id="navReport" onclick="switchPage('pageReport', this, 'navReport')"><i class="fa-solid fa-bug"></i> إبلاغ</button>
-        <button class="nav-item auth-hidden" id="navDashboardMobile" onclick="switchPage('pageDashboard', this, 'navDashboardDesktop')"><i class="fa-solid fa-chart-line"></i> لوحتي</button>
-    </nav>
+  <div id="profile-modal" class="modal" onclick="closeProfile()">
+    <div class="modal-content profile-modal-content" onclick="event.stopPropagation()">
+      <div class="close-modal" onclick="closeProfile()">✕</div>
 
-    <!-- حاوية الإشعارات -->
-    <div class="toast-container" id="toastContainer"></div>
+      <div class="profile-avatar" id="prof-avatar">U</div>
+      <h2 style="color:var(--primary-purple);margin-bottom:5px;"><span id="profile-username">@username</span></h2>
+      <div style="font-size:.9rem;color:#777;margin-bottom:15px;" data-i18n="profile_title">My Profile</div>
 
-    <script>
-        // المتغيرات العامة
-        let currentUser = null; // سيتم تعيينه عند تسجيل الدخول
-        
-        let projects = JSON.parse(localStorage.getItem('piProjects')) || [];
-        let reports = JSON.parse(localStorage.getItem('piReports')) || [];
+      <div class="profile-stats-grid">
+        <div class="profile-stat-box">
+          <div class="profile-stat-value" id="prof-total">0.00 π</div>
+          <div class="profile-stat-label" data-i18n="profile_total">Total Donated</div>
+        </div>
+        <div class="profile-stat-box">
+          <div class="profile-stat-value" id="prof-camps">0</div>
+          <div class="profile-stat-label" data-i18n="profile_campaigns">Campaigns Helped</div>
+        </div>
+        <div class="profile-stat-box" style="grid-column:1 / -1;">
+          <div class="profile-stat-value" id="prof-rank">-</div>
+          <div class="profile-stat-label" data-i18n="profile_rank">Global Rank</div>
+        </div>
+        <div class="profile-badge-box">
+          <span style="font-weight:900;color:#111827;" data-i18n="profile_badge">Donor Badge</span>
+          <span id="prof-badge" class="badge-pill">🌱 New Supporter</span>
+        </div>
+      </div>
 
-        // مشاريع تجريبية إذا كانت القاعدة فارغة
-        if(projects.length === 0) {
-            projects = [
-                { id: 1, owner: 'Admin', name: 'منصة DealWay التجارية', url: '#', bounty: 150, mainImg: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&auto=format&fit=crop&q=60', desc: 'موقع تجاري. نبحث عن ثغرات الدفع وتجاوز الصلاحيات.' },
-                { id: 2, owner: 'TestDeveloper', name: 'تطبيق PiChat', url: '#', bounty: 300, mainImg: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&auto=format&fit=crop&q=60', desc: 'تطبيق دردشة لا مركزي. مسموح بجميع الفحوصات عدا الـ DDoS.' }
-            ];
-            localStorage.setItem('piProjects', JSON.stringify(projects));
-        }
+      <h3 style="margin:15px 0 10px;color:var(--primary-purple);font-size:1.1rem;text-align:center;" data-i18n="profile_history">Donation History</h3>
+      <div id="prof-history" class="history-list"></div>
+    </div>
+  </div>
 
-        // 1. تهيئة Pi SDK وتسجيل الدخول
-        try { Pi.init({ version: "2.0", sandbox: false }); } catch(e) { console.log("تأكد من استخدام متصفح Pi"); }
+  <header>
+    <div class="header-right">
+      <div class="menu-btn" onclick="toggleDrawer()" aria-label="Open menu"><span></span><span></span><span></span></div>
+      <div class="logo" onclick="location.reload()">Donate Way</div>
+    </div>
+    <div class="auth-section">
+      <button id="login-button" onclick="login()">
+        <span data-i18n="btn_login">Login</span>
+      </button>
+      <div id="user-pill" class="user-pill" onclick="openProfile()">
+        <span>👤</span> <span id="username-display"></span>
+      </div>
+    </div>
+  </header>
 
-        const btnConnectPi = document.getElementById('btnConnectPi');
-        btnConnectPi.addEventListener('click', async function() {
-            if(currentUser) return;
-            
-            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري...';
-            
-            try {
-                const scopes = ['username'];
-                const authResults = await Pi.authenticate(scopes, (p) => { console.log(p) });
-                loginUser(authResults.user.username);
-            } catch (error) {
-                // تسجيل دخول تجريبي إذا فشل الـ SDK (للتجربة خارج متصفح بي)
-                showToast('لم يتم اكتشاف Pi Browser.. تم تفعيل حساب المطور التجريبي.', 'danger');
-                loginUser('TestDeveloper');
-            }
+  <main class="container">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow" data-i18n="hero_badge">Verified giving with Pi</div>
+        <h1 class="hero-title" data-i18n="hero_title">Your gift today... a new life tomorrow</h1>
+        <p class="hero-subtitle" data-i18n="hero_subtitle">
+          Choose a trusted campaign, donate in seconds, and follow the impact of every contribution through transparent progress and donor records.
+        </p>
+        <div class="hero-actions">
+          <a class="primary-link" href="#campaigns-container" data-i18n="hero_cta">Start donating</a>
+          <button class="secondary-link" type="button" onclick="toggleDrawer()" data-i18n="hero_stats_btn">View platform stats</button>
+        </div>
+      </div>
+
+      <div class="hero-panel">
+        <div class="mini-stat">
+          <div class="mini-icon">π</div>
+          <div class="mini-value" id="hero-total-pi">0.00 π</div>
+          <div class="mini-label" data-i18n="hero_total_label">Total raised</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-icon">🎯</div>
+          <div class="mini-value" id="hero-campaigns-count">0</div>
+          <div class="mini-label" data-i18n="hero_campaigns_label">Active campaigns</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trust-row">
+      <div class="trust-card">
+        <span>🔒</span>
+        <div>
+          <strong data-i18n="feature_secure_title">Secure Pi payments</strong>
+          <p data-i18n="feature_secure_desc">Payments are handled through the Pi SDK flow with server approval and completion.</p>
+        </div>
+      </div>
+      <div class="trust-card">
+        <span>📈</span>
+        <div>
+          <strong data-i18n="feature_progress_title">Live campaign progress</strong>
+          <p data-i18n="feature_progress_desc">Each campaign shows current donations, goals, and progress percentage.</p>
+        </div>
+      </div>
+      <div class="trust-card">
+        <span>🖼️</span>
+        <div>
+          <strong data-i18n="feature_impact_title">Impact gallery</strong>
+          <p data-i18n="feature_impact_desc">Campaigns can display result images so donors see how their help matters.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <h2 class="section-title" data-i18n="campaigns_title">Donation campaigns</h2>
+          <p class="section-desc" data-i18n="campaigns_desc">Filter by cause and support the campaign closest to your heart.</p>
+        </div>
+      </div>
+
+      <div class="filter-container">
+        <button class="filter-btn active" onclick="filterCampaigns('all', this)" data-i18n="filter_all">All</button>
+        <button class="filter-btn" onclick="filterCampaigns('health', this)" data-i18n="filter_health">Health</button>
+        <button class="filter-btn" onclick="filterCampaigns('education', this)" data-i18n="filter_education">Education</button>
+        <button class="filter-btn" onclick="filterCampaigns('food', this)" data-i18n="filter_food">Food</button>
+        <button class="filter-btn" onclick="filterCampaigns('emergency', this)" data-i18n="filter_emergency">Emergency</button>
+      </div>
+
+      <div id="main-loader" class="loader"></div>
+      <div class="campaigns-grid" id="campaigns-container"></div>
+    </section>
+
+    <div class="heroes-section">
+      <h2 style="color:var(--primary-purple);" data-i18n="heroes_title">🏆 Top Donors</h2>
+      <p style="color:var(--muted);margin-top:8px;" data-i18n="heroes_desc">A small honor board for people making a big difference.</p>
+      <div id="heroes-container" class="heroes-list"></div>
+    </div>
+  </main>
+
+  <button class="lang-ball" id="lang-ball" onclick="toggleLanguage()" aria-label="Toggle Language">
+    <span id="lang-ball-label">AR</span>
+  </button>
+
+  <script>
+    const SUPABASE_URL = 'https://axjkwrssmofzavaoqutq.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_tiuMncgWhf1YRWoD-uYQ3Q_ziI8OKci';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const Pi = window.Pi;
+
+    let currentUser = null;
+    let campaigns = [];
+    let globalDonorStats = [];
+    let currentLang = 'en';
+    let currentCategory = 'all';
+
+    const I18N = {
+      en: {
+        drawer_stats_title: "📊 Platform Stats",
+        stats_total_donations: "Total Donations",
+        stats_total_campaigns: "Campaigns",
+        stats_live_label: "Live overview",
+        stats_goal_progress: "Overall goal progress",
+        stats_unique_donors: "Donors",
+        stats_donations_count: "Donations",
+        stats_avg_donation: "Avg. gift",
+        stats_latest_donation: "Latest donation",
+        drawer_donors_title: "👤 All Donors Log",
+        modal_title_default: "Your Donation Impact",
+        modal_impact_prefix: "Donation impact: ",
+        msg_impact_soon: "Impact images will be available soon.",
+        btn_login: "Login",
+        hero_badge: "Verified giving with Pi",
+        hero_title: "Your gift today... a new life tomorrow",
+        hero_subtitle: "Choose a trusted campaign, donate in seconds, and follow the impact of every contribution through transparent progress and donor records.",
+        hero_cta: "Start donating",
+        hero_stats_btn: "View platform stats",
+        hero_total_label: "Total raised",
+        hero_campaigns_label: "Active campaigns",
+        feature_secure_title: "Secure Pi payments",
+        feature_secure_desc: "Payments are handled through the Pi SDK flow with server approval and completion.",
+        feature_progress_title: "Live campaign progress",
+        feature_progress_desc: "Each campaign shows current donations, goals, and progress percentage.",
+        feature_impact_title: "Impact gallery",
+        feature_impact_desc: "Campaigns can display result images so donors see how their help matters.",
+        campaigns_title: "Donation campaigns",
+        campaigns_desc: "Filter by cause and support the campaign closest to your heart.",
+        heroes_title: "🏆 Top Donors",
+        heroes_desc: "A small honor board for people making a big difference.",
+        rank_label: "Rank",
+        label_goal: "Goal:",
+        label_raised: "Raised",
+        label_remaining: "Remaining",
+        label_completed: "Completed",
+        btn_donate_now: "Donate now",
+        btn_connecting: "Connecting...",
+        btn_done: "Donated ✅",
+        btn_view_impact: "🖼️ View impact",
+        placeholder_amount: "0.00",
+        msg_login_first: "Please login first.",
+        msg_valid_amount: "Enter a valid amount.",
+        msg_use_pi_browser: "Please use Pi Browser.",
+        msg_thanks: "Thank you!",
+        msg_pay_error: "Payment error occurred.",
+        msg_no_donations: "No donations yet.",
+        msg_no_campaigns: "No campaigns in this category yet.",
+        memo_prefix: "Donation for: ",
+        profile_title: "My Profile",
+        profile_total: "Total Donated",
+        profile_campaigns: "Campaigns Helped",
+        profile_rank: "Global Rank",
+        profile_history: "Donation History",
+        profile_badge: "Donor Badge",
+        badge_new: "New Supporter",
+        badge_kind: "Kind Heart",
+        badge_hero: "Good Hero",
+        badge_legend: "Giving Legend",
+        updates_title: "Campaign updates",
+        update_raised: "Progress is now at {progress}% of the campaign goal.",
+        update_need: "Still needed: {remaining} π to complete this campaign.",
+        update_complete: "Goal completed. Thank you to every supporter.",
+        btn_share_whatsapp: "WhatsApp",
+        btn_copy_link: "Copy link",
+        msg_link_copied: "Campaign link copied.",
+        share_text: "Support this campaign on Donate Way:",
+        filter_all: "All",
+        filter_health: "Health",
+        filter_education: "Education",
+        filter_food: "Food",
+        filter_emergency: "Emergency"
+      },
+      ar: {
+        drawer_stats_title: "📊 إحصائيات المنصة",
+        stats_total_donations: "إجمالي التبرعات",
+        stats_total_campaigns: "عدد الحملات",
+        stats_live_label: "نظرة مباشرة",
+        stats_goal_progress: "تقدم الأهداف الكلي",
+        stats_unique_donors: "المتبرعون",
+        stats_donations_count: "عمليات التبرع",
+        stats_avg_donation: "متوسط التبرع",
+        stats_latest_donation: "آخر تبرع",
+        drawer_donors_title: "👤 سجل جميع المتبرعين",
+        modal_title_default: "أثر تبرعكم",
+        modal_impact_prefix: "أثر تبرعكم: ",
+        msg_impact_soon: "سيتم رفع صور الأثر قريباً",
+        btn_login: "دخول",
+        hero_badge: "تبرع موثّق باستخدام Pi",
+        hero_title: "عطاؤك اليوم.. حياة جديدة لغيرك غداً",
+        hero_subtitle: "اختر حملة موثوقة، تبرع خلال ثوانٍ، وتابع أثر مساهمتك من خلال تقدم واضح وسجل شفاف للمتبرعين.",
+        hero_cta: "ابدأ التبرع",
+        hero_stats_btn: "عرض إحصائيات المنصة",
+        hero_total_label: "إجمالي ما تم جمعه",
+        hero_campaigns_label: "حملات نشطة",
+        feature_secure_title: "مدفوعات Pi آمنة",
+        feature_secure_desc: "تتم المدفوعات عبر Pi SDK مع موافقة وإكمال من الخادم.",
+        feature_progress_title: "تقدم مباشر للحملات",
+        feature_progress_desc: "كل حملة تعرض المبلغ الحالي والهدف ونسبة الإنجاز.",
+        feature_impact_title: "معرض أثر التبرع",
+        feature_impact_desc: "يمكن للحملات عرض صور النتائج حتى يرى المتبرع أثر مساهمته.",
+        campaigns_title: "حملات التبرع",
+        campaigns_desc: "صفّي الحملات حسب المجال وادعم الأقرب لقلبك.",
+        heroes_title: "🏆 قائمة أبطال الخير",
+        heroes_desc: "لوحة شرف صغيرة لأشخاص يصنعون أثراً كبيراً.",
+        rank_label: "مركز",
+        label_goal: "الهدف:",
+        label_raised: "تم جمع",
+        label_remaining: "المتبقي",
+        label_completed: "مكتمل",
+        btn_donate_now: "تبرع الآن",
+        btn_connecting: "جاري الاتصال...",
+        btn_done: "تم التبرع ✅",
+        btn_view_impact: "🖼️ مشاهدة أثر التبرع",
+        placeholder_amount: "0.00",
+        msg_login_first: "سجل دخولك أولاً",
+        msg_valid_amount: "أدخل مبلغاً صحيحاً",
+        msg_use_pi_browser: "استخدم متصفح Pi",
+        msg_thanks: "شكراً لك!",
+        msg_pay_error: "حدث خطأ في الدفع",
+        msg_no_donations: "لا توجد تبرعات حتى الآن.",
+        msg_no_campaigns: "لا توجد حملات في هذا التصنيف حالياً.",
+        memo_prefix: "تبرع لـ: ",
+        profile_title: "ملفي الشخصي",
+        profile_total: "إجمالي تبرعاتي",
+        profile_campaigns: "حملات دعمتها",
+        profile_rank: "تصنيفي العالمي",
+        profile_history: "سجل تبرعاتي",
+        profile_badge: "شارة المتبرع",
+        badge_new: "داعم جديد",
+        badge_kind: "قلب رحيم",
+        badge_hero: "بطل الخير",
+        badge_legend: "أسطورة العطاء",
+        updates_title: "تحديثات الحملة",
+        update_raised: "وصل تقدم الحملة الآن إلى {progress}% من الهدف.",
+        update_need: "المتبقي لإكمال الحملة: {remaining} π.",
+        update_complete: "تم اكتمال الهدف. شكراً لكل الداعمين.",
+        btn_share_whatsapp: "واتساب",
+        btn_copy_link: "نسخ الرابط",
+        msg_link_copied: "تم نسخ رابط الحملة.",
+        share_text: "ادعم هذه الحملة على Donate Way:",
+        filter_all: "الكل",
+        filter_health: "صحة",
+        filter_education: "تعليم",
+        filter_food: "إطعام",
+        filter_emergency: "طوارئ"
+      }
+    };
+
+    function t(key){
+      return (I18N[currentLang] && I18N[currentLang][key]) ? I18N[currentLang][key] : key;
+    }
+
+    function categoryLabel(category){
+      const map = {
+        health: t('filter_health'),
+        education: t('filter_education'),
+        food: t('filter_food'),
+        emergency: t('filter_emergency')
+      };
+      return map[category] || t('filter_all');
+    }
+
+    function donorBadge(total){
+      const amount = parseFloat(total || 0);
+      if(amount >= 100) return { icon:'👑', label:t('badge_legend'), cls:'gold' };
+      if(amount >= 50) return { icon:'🏆', label:t('badge_hero'), cls:'silver' };
+      if(amount >= 10) return { icon:'💜', label:t('badge_kind'), cls:'bronze' };
+      return { icon:'🌱', label:t('badge_new'), cls:'' };
+    }
+
+    function makeCampaignUpdates(c, progress, remaining, isComplete){
+      const customUpdate = c.latest_update || c.update_text || c.news || c.description;
+      const updates = [];
+      if(customUpdate) updates.push(escapeHtml(customUpdate));
+      updates.push(t('update_raised').replace('{progress}', progress.toFixed(0)));
+      updates.push(isComplete ? t('update_complete') : t('update_need').replace('{remaining}', remaining.toFixed(2)));
+      return updates.slice(0, 3);
+    }
+
+    function campaignShareUrl(c){
+      const base = window.location.href.split('#')[0];
+      return `${base}#campaign-${encodeURIComponent(c.id)}`;
+    }
+
+    function shareText(c){
+      return `${t('share_text')} ${c.title || 'Donate Way'} ${campaignShareUrl(c)}`;
+    }
+
+    function shareCampaign(id, channel){
+      const c = campaigns.find(item => item.id == id);
+      if(!c) return;
+      const text = shareText(c);
+      if(channel === 'whatsapp'){
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        return;
+      }
+      if(navigator.share){
+        navigator.share({ title: c.title || 'Donate Way', text, url: campaignShareUrl(c) }).catch(() => {});
+      }else{
+        copyCampaignLink(id);
+      }
+    }
+
+    function copyCampaignLink(id){
+      const c = campaigns.find(item => item.id == id);
+      if(!c) return;
+      const text = shareText(c);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(() => showMsg(t('msg_link_copied'))).catch(() => fallbackCopy(text));
+      }else{
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text){
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+      showMsg(t('msg_link_copied'));
+    }
+
+    function applyLanguage(){
+      const html = document.documentElement;
+      html.lang = currentLang;
+      html.dir = (currentLang === 'ar') ? 'rtl' : 'ltr';
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+      });
+
+      document.getElementById('lang-ball-label').textContent = (currentLang === 'en') ? 'AR' : 'EN';
+
+      renderCamps();
+      renderHeroes(globalDonorStats.slice(0,5));
+      updateHeroStats();
+    }
+
+    function toggleLanguage(){
+      currentLang = (currentLang === 'en') ? 'ar' : 'en';
+      applyLanguage();
+    }
+
+    function filterCampaigns(category, btnElement){
+      currentCategory = category;
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      if(btnElement) btnElement.classList.add('active');
+      renderCamps();
+    }
+
+    function setQuickAmount(campaignId, amount){
+      document.getElementById(`in-${campaignId}`).value = amount;
+    }
+
+    const onIncompletePaymentFound = async (payment) => {
+      console.log("Incomplete payment found:", payment);
+      try{
+        await fetch('/api/pi/complete', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
         });
+      }catch(e){
+        console.error("Error completing pending payment:", e);
+      }
+    };
 
-        function loginUser(username) {
-            currentUser = username;
-            btnConnectPi.innerHTML = `<i class="fa-solid fa-user-check"></i> ${username}`;
-            btnConnectPi.style.backgroundColor = "var(--primary-yellow)";
-            btnConnectPi.style.color = "var(--bg-main)";
-            
-            // إظهار تبويب "لوحة التحكم"
-            document.getElementById('navDashboardDesktop').classList.remove('auth-hidden');
-            document.getElementById('navDashboardMobile').classList.remove('auth-hidden');
-            
-            showToast(`أهلاً بك يا ${username}!`, 'success');
-            renderDashboard();
+    function toggleDrawer(){
+      const drawer = document.getElementById('side-drawer');
+      const overlay = document.getElementById('drawer-overlay');
+      drawer.classList.toggle('active');
+      overlay.style.display = drawer.classList.contains('active') ? 'block' : 'none';
+      if(drawer.classList.contains('active')) loadGlobalStats();
+    }
+
+    function updateHeroStats(){
+      const totalPi = globalDonorStats.reduce((sum, d) => sum + parseFloat(d.total || 0), 0);
+      document.getElementById('hero-total-pi').innerText = totalPi.toFixed(2) + " π";
+      document.getElementById('hero-campaigns-count').innerText = campaigns.length || 0;
+    }
+
+    async function loadGlobalStats(){
+      const { data: dons } = await _supabase.from('donations').select('username, amount');
+      const { data: camps } = await _supabase.from('campaigns').select('id, target_amount, current_amount');
+
+      const safeDons = dons || [];
+      const safeCamps = camps || [];
+
+      const totalPi = safeDons.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0);
+      const totalGoal = safeCamps.reduce((sum, c) => sum + parseFloat(c.target_amount || 0), 0);
+      const progress = totalGoal > 0 ? Math.min((totalPi / totalGoal) * 100, 100) : 0;
+      const uniqueDonors = new Set(safeDons.map(d => d.username).filter(Boolean)).size;
+      const avgDonation = safeDons.length ? totalPi / safeDons.length : 0;
+      const latestDonation = safeDons.length ? safeDons[safeDons.length - 1] : null;
+
+      document.getElementById('total-pi-stats').innerText = totalPi.toFixed(2) + " π";
+      document.getElementById('total-campaigns-stats').innerText = safeCamps.length;
+      document.getElementById('unique-donors-stats').innerText = uniqueDonors;
+      document.getElementById('total-donations-count-stats').innerText = safeDons.length;
+      document.getElementById('avg-donation-stats').innerText = avgDonation.toFixed(2) + " π";
+      document.getElementById('stats-total-goal').innerText = totalGoal.toFixed(2) + " π";
+      document.getElementById('stats-progress-percent').innerText = progress.toFixed(0) + "%";
+      document.getElementById('stats-progress-fill').style.width = progress + "%";
+      document.querySelector('.dashboard-ring').style.background =
+        `conic-gradient(rgba(255,255,255,.95) ${progress * 3.6}deg, rgba(255,255,255,.20) 0deg)`;
+
+      document.getElementById('latest-donation-stats').innerText = latestDonation
+        ? `@${latestDonation.username || 'user'} · ${parseFloat(latestDonation.amount || 0).toFixed(2)} π`
+        : '—';
+
+      document.getElementById('all-donors-list').innerHTML = safeDons.length ? safeDons.map(d => `
+        <div style="background:white;padding:13px;border-radius:16px;display:flex;justify-content:space-between;gap:10px;border:1px solid #eee;box-shadow:0 6px 16px rgba(0,0,0,.03);">
+          <span style="font-weight:800;">@${escapeHtml(d.username || 'user')}</span>
+          <span style="color:var(--primary-purple);font-weight:800;white-space:nowrap;">${parseFloat(d.amount || 0).toFixed(2)} π</span>
+        </div>
+      `).reverse().join('') : `<div class="empty-state" style="padding:22px;">${t('msg_no_donations')}</div>`;
+    }
+
+    function showMsg(text){
+      const alertBox = document.getElementById('custom-alert');
+      alertBox.innerText = text;
+      alertBox.style.display = 'block';
+      setTimeout(() => { alertBox.style.display = 'none'; }, 3000);
+    }
+
+    function openImage(url, title){
+      if(!url || url === '' || url === 'null'){
+        showMsg(t('msg_impact_soon'));
+        return;
+      }
+      document.getElementById('modal-img-src').src = url;
+      document.getElementById('modal-title').innerText = t('modal_impact_prefix') + title;
+      document.getElementById('image-modal').style.display = 'flex';
+    }
+
+    function closeImage(){
+      document.getElementById('image-modal').style.display = 'none';
+      document.getElementById('modal-img-src').src = '';
+    }
+
+    async function openProfile(){
+      if(!currentUser) return;
+
+      document.getElementById('prof-avatar').innerText = currentUser.username.charAt(0).toUpperCase();
+      document.getElementById('profile-username').innerText = '@' + currentUser.username;
+      document.getElementById('prof-history').innerHTML = `<div style="text-align:center;padding:20px;color:#888;">${t('btn_connecting')}</div>`;
+      document.getElementById('profile-modal').style.display = 'flex';
+
+      const { data: userDons } = await _supabase.from('donations')
+        .select('*')
+        .eq('username', currentUser.username)
+        .order('id', { ascending:false });
+
+      if(userDons){
+        const totalAmount = userDons.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0);
+        const uniqueCamps = new Set(userDons.map(d => d.campaign_id)).size;
+
+        document.getElementById('prof-total').innerText = totalAmount.toFixed(2) + ' π';
+        document.getElementById('prof-camps').innerText = uniqueCamps;
+
+        const rankIndex = globalDonorStats.findIndex(s => s.username === currentUser.username);
+        document.getElementById('prof-rank').innerText = rankIndex >= 0 ? '#' + (rankIndex + 1) : '-';
+        const badge = donorBadge(totalAmount);
+        document.getElementById('prof-badge').className = `badge-pill ${badge.cls}`;
+        document.getElementById('prof-badge').innerText = `${badge.icon} ${badge.label}`;
+
+        if(userDons.length > 0){
+          document.getElementById('prof-history').innerHTML = userDons.map(d => {
+            const camp = campaigns.find(c => c.id == d.campaign_id);
+            const campTitle = camp ? camp.title : (t('memo_prefix') + d.campaign_id);
+            return `
+              <div class="history-item">
+                <span class="history-item-title">${escapeHtml(campTitle)}</span>
+                <span class="history-item-amount">+${parseFloat(d.amount || 0).toFixed(2)} π</span>
+              </div>`;
+          }).join('');
+        }else{
+          document.getElementById('prof-history').innerHTML = `<div style="text-align:center;padding:20px;color:#888;">${t('msg_no_donations')}</div>`;
         }
+      }
+    }
 
-        // 2. إشعارات وتصفح الصفحات
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            const icon = type === 'success' ? '<i class="fa-solid fa-check" style="color:var(--success)"></i>' : '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>';
-            if(type === 'danger') toast.style.borderLeftColor = 'var(--danger)';
-            toast.innerHTML = `${icon} <span>${message}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3500);
+    function closeProfile(){
+      document.getElementById('profile-modal').style.display = 'none';
+    }
+
+    async function loadData(){
+      document.getElementById('main-loader').style.display = 'block';
+
+      const { data: camps } = await _supabase.from('campaigns').select('*').order('id');
+      if(camps){
+        campaigns = camps;
+        renderCamps();
+      }
+
+      const { data: dons } = await _supabase.from('donations').select('username, amount');
+      if(dons){
+        const totals = dons.reduce((acc, curr) => {
+          acc[curr.username] = (acc[curr.username] || 0) + parseFloat(curr.amount || 0);
+          return acc;
+        }, {});
+        globalDonorStats = Object.entries(totals)
+          .map(([username, total]) => ({ username, total }))
+          .sort((a,b) => b.total - a.total);
+
+        renderHeroes(globalDonorStats.slice(0,5));
+      }
+
+      updateHeroStats();
+      document.getElementById('main-loader').style.display = 'none';
+    }
+
+    function renderCamps(){
+      const container = document.getElementById('campaigns-container');
+      if(!container) return;
+
+      const filteredCampaigns = currentCategory === 'all'
+        ? campaigns
+        : campaigns.filter(c => c.category === currentCategory);
+
+      if(filteredCampaigns.length === 0){
+        container.innerHTML = `<div class="empty-state">${t('msg_no_campaigns')}</div>`;
+        return;
+      }
+
+      container.innerHTML = filteredCampaigns.map(c => {
+        const current = parseFloat(c.current_amount || 0);
+        const target = parseFloat(c.target_amount || 0);
+        const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+        const remaining = Math.max(target - current, 0);
+        const isComplete = progress >= 100;
+
+        return `
+          <div class="card" id="campaign-${c.id}">
+            <span class="category-chip">${categoryLabel(c.category)}</span>
+            <img src="${c.image_url || 'https://via.placeholder.com/600x360?text=Donate+Way'}" class="campaign-img" alt="${escapeHtml(c.title || 'Campaign')}">
+            <h3>${escapeHtml(c.title || '')}</h3>
+
+            <div class="campaign-meta">
+              <span>${t('label_raised')}: <strong>${current.toFixed(2)} π</strong></span>
+              <span>${t('label_goal')} ${target.toFixed(2)} π</span>
+            </div>
+
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${progress}%"></div>
+            </div>
+
+            <div class="progress-note">
+              <span>${progress.toFixed(0)}%</span>
+              <span>${isComplete ? t('label_completed') : `${t('label_remaining')}: ${remaining.toFixed(2)} π`}</span>
+            </div>
+
+            <div class="updates-box">
+              <div class="updates-title">
+                <span>${t('updates_title')}</span>
+                <span>📝</span>
+              </div>
+              <div class="updates-list">
+                ${makeCampaignUpdates(c, progress, remaining, isComplete).map(item => `
+                  <div class="update-item"><span class="update-dot"></span><span>${item}</span></div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="quick-amounts">
+              <button class="quick-btn" onclick="setQuickAmount(${c.id}, 1)">1 π</button>
+              <button class="quick-btn" onclick="setQuickAmount(${c.id}, 5)">5 π</button>
+              <button class="quick-btn" onclick="setQuickAmount(${c.id}, 10)">10 π</button>
+            </div>
+
+            <input type="number" min="0" step="0.01" id="in-${c.id}" class="amount-input" placeholder="${t('placeholder_amount')}">
+
+            <div class="btn-group">
+              <button id="btn-${c.id}" class="donate-btn" onclick="handleDonate(${c.id})">${t('btn_donate_now')}</button>
+              <button class="result-btn" onclick="openImage('${c.result_image_url || ''}', '${escapeHtml(c.title || '')}')">${t('btn_view_impact')}</button>
+            </div>
+            <div class="share-row">
+              <button class="share-btn" onclick="shareCampaign(${c.id}, 'whatsapp')">💬 ${t('btn_share_whatsapp')}</button>
+              <button class="share-btn" onclick="copyCampaignLink(${c.id})">🔗 ${t('btn_copy_link')}</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderHeroes(heroes){
+      const holder = document.getElementById('heroes-container');
+      if(!holder) return;
+
+      if(!heroes || heroes.length === 0){
+        holder.innerHTML = `<div class="empty-state" style="display:block;">${t('msg_no_donations')}</div>`;
+        return;
+      }
+
+      holder.innerHTML = heroes.map((h, i) => `
+        <div class="hero-card rank-${i+1}">
+          <div class="rank-tag">${t('rank_label')} ${i+1}</div>
+          <div class="hero-avatar">${escapeHtml((h.username || 'U').charAt(0).toUpperCase())}</div>
+          <div class="hero-name">@${escapeHtml(h.username || 'user')}</div>
+          <div class="hero-amount">${parseFloat(h.total || 0).toFixed(2)} π</div>
+          <div class="badge-pill ${donorBadge(h.total).cls}">${donorBadge(h.total).icon} ${donorBadge(h.total).label}</div>
+        </div>`).join('');
+    }
+
+    async function login(){
+      try{
+        const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+        currentUser = auth.user;
+
+        document.getElementById('login-button').style.display = 'none';
+        document.getElementById('user-pill').style.display = 'flex';
+        document.getElementById('username-display').textContent = currentUser.username;
+      }catch(e){
+        showMsg(t('msg_use_pi_browser'));
+      }
+    }
+
+    async function recordDonation(amount, campaignId){
+      await _supabase.from('donations').insert([{
+        pi_user_id: currentUser.uid,
+        username: currentUser.username,
+        amount,
+        campaign_id: campaignId
+      }]);
+
+      const camp = campaigns.find(c => c.id == campaignId);
+      const nextAmount = (parseFloat(camp.current_amount || 0) || 0) + amount;
+
+      await _supabase.from('campaigns')
+        .update({ current_amount: nextAmount })
+        .eq('id', campaignId);
+
+      loadData();
+    }
+
+    function handleDonate(id){
+      if(!currentUser) return showMsg(t('msg_login_first'));
+
+      const btn = document.getElementById(`btn-${id}`);
+      const input = document.getElementById(`in-${id}`);
+      const amt = parseFloat(input.value);
+
+      if(!amt || amt <= 0) return showMsg(t('msg_valid_amount'));
+
+      btn.disabled = true;
+      btn.innerText = t('btn_connecting');
+      document.getElementById('main-loader').style.display = 'block';
+
+      const campTitle = (campaigns.find(c => c.id == id) || {}).title || '';
+
+      Pi.createPayment({
+        amount: amt,
+        memo: `${t('memo_prefix')}${campTitle}`,
+        metadata: { campaignId: id }
+      }, {
+        onReadyForServerApproval: (payId) => fetch('/api/pi/approve', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ paymentId: payId })
+        }),
+
+        onReadyForServerCompletion: (payId, tx) => fetch('/api/pi/complete', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ paymentId: payId, txid: tx })
+        }).then(() => {
+          recordDonation(amt, id);
+          resetButton(btn, t('btn_done'));
+          showMsg(t('msg_thanks'));
+        }),
+
+        onCancel: () => resetButton(btn, t('btn_donate_now')),
+
+        onError: (e) => {
+          console.error(e);
+          resetButton(btn, t('btn_donate_now'));
+          showMsg(t('msg_pay_error'));
         }
+      });
+    }
 
-        function switchPage(pageId, clickedBtn, pairNavId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.desktop-nav button, .nav-item').forEach(btn => btn.classList.remove('active'));
+    function resetButton(btn, text){
+      btn.disabled = false;
+      btn.innerText = text;
+      document.getElementById('main-loader').style.display = 'none';
+      if(text === t('btn_done')){
+        const inputId = btn.id.replace('btn-', 'in-');
+        document.getElementById(inputId).value = '';
+      }
+    }
 
-            document.getElementById(pageId).classList.add('active');
-            
-            clickedBtn.classList.add('active');
-            if(pairNavId && document.getElementById(pairNavId)) {
-                document.getElementById(pairNavId).classList.add('active');
-            }
-            window.scrollTo(0, 0);
+    function escapeHtml(value){
+      return String(value)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#039;");
+    }
 
-            if(pageId === 'pageDashboard') renderDashboard();
-        }
-
-        // 3. عرض المشاريع في الاستكشاف ونموذج الإبلاغ
-        function renderProjects() {
-            const grid = document.getElementById('projectsGrid');
-            const select = document.getElementById('reportTarget');
-            grid.innerHTML = ''; select.innerHTML = '<option value="">اختر المشروع...</option>';
-
-            projects.forEach(p => {
-                grid.innerHTML += `
-                    <div class="card">
-                        <div class="card-img-container">
-                            <img src="${p.mainImg}" class="card-main-img">
-                            <div class="bounty-tag"><i class="fa-brands fa-pied-piper-alt"></i> ${p.bounty} Pi</div>
-                        </div>
-                        <div class="card-body">
-                            <h3>${p.name}</h3>
-                            <p>${p.desc}</p>
-                            <button class="btn btn-outline btn-full" onclick="showToast('تم التحويل لبيئة الفحص المعزولة')">بدء الفحص</button>
-                        </div>
-                    </div>`;
-                select.innerHTML += `<option value="${p.id}">${p.name} (بواسطة ${p.owner})</option>`;
-            });
-        }
-
-        // 4. عرض لوحة تحكم المطور
-        function renderDashboard() {
-            if(!currentUser) return;
-            
-            const myProjects = projects.filter(p => p.owner === currentUser);
-            const listProj = document.getElementById('myProjectsList');
-            const listRep = document.getElementById('incomingReportsList');
-            
-            listProj.innerHTML = myProjects.length ? '' : '<div class="empty-state">لم تقم برفع أي مشاريع بعد.</div>';
-            myProjects.forEach(p => {
-                listProj.innerHTML += `<div class="report-item" style="border-color:var(--success)"><div class="report-content"><h4>${p.name}</h4><span class="report-meta">جائزة: ${p.bounty} Pi</span></div></div>`;
-            });
-
-            // عرض التقارير الواردة لمشاريع هذا المطور
-            const myProjIds = myProjects.map(p => p.id.toString());
-            const myReports = reports.filter(r => myProjIds.includes(r.projectId));
-            
-            listRep.innerHTML = myReports.length ? '' : '<div class="empty-state">لا يوجد تقارير ثغرات مرسلة لمشاريعك حتى الآن.</div>';
-            myReports.forEach(r => {
-                const projName = projects.find(p => p.id.toString() === r.projectId)?.name || 'غير معروف';
-                listRep.innerHTML += `
-                    <div class="report-item">
-                        <img src="${r.imgData}" class="report-img">
-                        <div class="report-content">
-                            <h4>تقرير وارد لـ: ${projName}</h4>
-                            <p>${r.desc}</p>
-                            <span class="report-meta"><i class="fa-solid fa-wallet"></i> مرسل من: ${r.wallet}</span>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        // 5. أدوات الملفات
-        function updateFileName(input) {
-            const btn = input.previousElementSibling;
-            if (input.files[0]) {
-                btn.innerHTML = `<i class="fa-solid fa-check"></i> تم اختيار الصورة`;
-                btn.style.borderColor = "var(--success)"; btn.style.color = "var(--success)";
-            }
-        }
-        const getBase64 = file => new Promise((res, rej) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => res(reader.result); });
-
-        // 6. رفع مشروع جديد
-        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if(!currentUser) return showToast('يجب تسجيل الدخول أولاً لرفع مشروع!', 'danger');
-            
-            const file = document.getElementById('projMainImg').files[0];
-            const imgData = file ? await getBase64(file) : '';
-
-            projects.unshift({
-                id: Date.now(), owner: currentUser,
-                name: document.getElementById('projName').value,
-                url: document.getElementById('projUrl').value,
-                bounty: document.getElementById('projBounty').value,
-                desc: document.getElementById('projDesc').value,
-                mainImg: imgData
-            });
-
-            localStorage.setItem('piProjects', JSON.stringify(projects));
-            renderProjects(); renderDashboard(); this.reset();
-            document.querySelector('#uploadForm .file-upload-btn').innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الغلاف';
-            
-            showToast('تم نشر المشروع بنجاح!');
-            switchPage('pageDashboard', document.getElementById('navDashboardDesktop'), 'navDashboardMobile');
-        });
-
-        // 7. إرسال تقرير خطأ
-        document.getElementById('reportForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const file = document.getElementById('bugImage').files[0];
-            const imgData = file ? await getBase64(file) : '';
-
-            reports.unshift({
-                id: Date.now(),
-                projectId: document.getElementById('reportTarget').value,
-                desc: document.getElementById('bugDescription').value,
-                wallet: document.getElementById('piAddress').value,
-                imgData: imgData
-            });
-
-            localStorage.setItem('piReports', JSON.stringify(reports));
-            renderDashboard(); this.reset();
-            document.getElementById('bugImageBtn').innerHTML = '<i class="fa-solid fa-image"></i> اختر صورة الخطأ';
-            
-            showToast('تم إرسال التقرير للمطور بنجاح!', 'success');
-        });
-
-        renderProjects();
-    </script>
+    window.onload = () => {
+      if(Pi && Pi.init){
+        Pi.init({ version:"2.0" });
+      }
+      applyLanguage();
+      loadData();
+    };
+  </script>
 </body>
 </html>
