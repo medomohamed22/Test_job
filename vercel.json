@@ -1,1 +1,26 @@
-{"version":2,"functions":{"api/run.js":{"maxDuration":120,"memory":2048}},"headers":[{"source":"/api/(.*)","headers":[{"key":"Cache-Control","value":"no-store"}]}]}
+{
+  "version": 2,
+  "functions": {
+    "api/run.js": {
+      "maxDuration": 120,
+      "memory": 2048
+    },
+    "api/models.js": {
+      "maxDuration": 30
+    },
+    "api/test.js": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}
