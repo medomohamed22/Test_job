@@ -1,8 +1,0 @@
-{
-  "name": "nexus-pi-withdraw-only",
-  "version": "1.0.0",
-  "type": "commonjs",
-  "dependencies": {
-    "@stellar/stellar-sdk": "^13.3.0"
-  }
-}
