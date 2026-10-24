@@ -10,6 +10,10 @@
     },
     "api/test.js": {
       "maxDuration": 30
+    },
+    "api/benchmark.js": {
+      "maxDuration": 240,
+      "memory": 2048
     }
   },
   "headers": [

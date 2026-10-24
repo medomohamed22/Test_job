@@ -1,23 +1,25 @@
-# HyperBrowse Studio v0.7 — DOM-first benchmark demo
+# HyperBrowse Studio v0.9 — Vision vs DOM Benchmark
 
-## التشغيل والنشر
+## Deploy (mobile-friendly)
+Unzip and upload the files to your existing GitHub repository at its root; import or redeploy on Vercel with Framework Preset **Other**. The interface includes provider settings for Meta, Gemini, OpenRouter and custom OpenAI-compatible HTTPS API endpoints. Keys are entered in the browser UI (localStorage), then sent to your own Vercel function per run; no Vercel environment secrets required. **Use limited test keys.** The public serverless endpoints are unauthenticated and can incur costs, so do not treat this as a secure public SaaS deployment.
 
-ارفع محتويات المجلد مباشرة إلى نفس GitHub Repository المرتبط بـVercel (مع الاحتفاظ بمجلد api). لا يلزم إضافة أي Environment Variables. أضف مفتاح نموذج **اختباري منخفض الرصيد** في Settings من داخل الموقع. الإعدادات تحفظ في localStorage وتُرسل إلى Vercel عبر HTTPS أثناء التنفيذ.
+## New v0.9 benchmark
+- **Visual baseline:** for each of three predetermined pages, capture a JPEG screenshot and **send it to a vision-capable model** for visual observation. Do not silently pretend vision worked if provider rejects image inputs.
+- **Optimized:** navigate to the exact same three predefined URLs, extract structured information from HTML DOM, and call the model once for evidence synthesis; only capture and send a screenshot if expected DOM elements are absent.
+- **Fair verification:** evaluate both runs against the same independent DOM extraction conditions. Both modes use fixed targets; this benchmark measures visual observation versus DOM-first observation **rather than fully autonomous AI browser navigation**.
+- 4 site suites: Wikipedia, Hacker News, MDN, GitHub. 1–3 repeat runs, alternating execution order. Dashboard shows recent run and mean timings; JSON report contains every run.
+- Metrics: elapsed time, AI calls, vision calls and fallbacks, screenshots, DOM reads, browser navigations, error count, verified outcome, and *actual reported input/output tokens when all provider calls supply usage*. Billing may differ.
 
-اضغط **تشغيل Demo المتقدم**: يشغل Chromium حقيقي داخل Vercel Function، ويطلب من نموذج AI المختار التخطيط لمهمة على `books.toscrape.com`، ثم ينفذ استخراج DOM حتمي من أقسام Travel وMystery وHistorical Fiction، ويزور صفحتين لكل قسم إن وجدتا، ويجمع الأسعار والتوافر ويحسب إحصاءات قابلة للتحقق. النموذج المحدد يكتب ملخصًا مستندًا إلى البيانات. النتيجة تشمل `stats`, `verified` و`metrics`.
+## Constraints
+- Vercel runs ephemeral serverless Chromium processes: no live streaming and no persistent Chrome between runs.
+- Each benchmark API invocation may take significant time; repeated runs are sequential and may use paid API credits.
+- Sites can change, block automation, time out or alter their selectors. Some models or providers do not support image messages; those cannot run the visual baseline.
+- Never assume the reported mean from a few runs proves superiority: use both success rates and elapsed times. No performance gains claimed before real hosted experiments.
+- Screenshots are sent to the selected provider in baseline; **do not test confidential/authenticated pages**.
+- Navigation checks block private/local destinations, but public deployment of automated browsing remains risky; prefer private demos and strict usage budgets.
 
-## تحسين الأداء
-
-- Demo: تجنب Screenshot على مستوى كل خطوة؛ لقطة نهائية واحدة فقط. عملية جمع البيانات لا تستخدم تحليل الصور أصلًا.
-- مهام المستخدم العامة: النموذج يقترح حتى 3 إجراءات متتابعة، يعاد فحص DOM بعد كل إجراء، ويتوقف التجميع عند التنقل أو الضغط لتجنب استخدام IDs قديمة.
-- بعد أخطاء متكررة فقط: التقاط لقطة تصحيح في Replay، لكن النسخة **لا ترسل الصورة إلى النموذج**، لذلك ليست Vision Fallback حقيقية بعد؛ تسجيل الصورة فقط للمراجعة البشرية.
-- إحصاءات عدد نداءات النموذج واللقطات والإجراءات والأخطاء.
-
-## الحدود المعروفة
-
-- تجربة Vercel Serverless، وليست جلسة Browser حيّة مستمرة؛ العرض Replay بعد إرجاع الاستجابة.
-- Demo ليس Agent حرًا بالكامل: قرار التخطيط والتلخيص يتم بالنموذج، لكن التنقل والاستخراج لثلاثة أقسام محددة يتمان عبر أدوات DOM برمجية حتمية لضمان الدقة وسرعة التنفيذ.
-- المهام الحرة تدعم التخطيط والتنفيذ الدفعي الجزئي، لكنها لا تمتلك تحققًا آليًا عامًا من صحة كل هدف ولا تصحيحًا ذاتيًا مضمونًا.
-- الوصول إلى المواقع العامة فقط؛ مواقع تسجيل الدخول وCAPTCHA والإجراءات الحساسة غير مدعومة.
-- بدون تسجيل دخول للموقع يمكن لجهات أخرى استدعاء وظائف Chromium؛ استخدم النشر للاختبار فقط وراقب استهلاك Vercel.
-- لم يُختبر تشغيل Chromium فعليًا على حساب Vercel أو مع API Key في هذه البيئة. افحص الـLogs عند أول Deploy.
+## Validate
+`npm install`
+`node --check api/benchmark.js`
+`node --check api/run.js`
+Use `vercel dev` locally or deploy to Vercel to test actual Chromium. No model keys or Vercel deployment testing was available during packaging.
