@@ -1,0 +1,6 @@
+{
+  "name":"hyperbrowse-vercel","version":"0.4.0","private":true,"type":"module",
+  "scripts":{"dev":"vercel dev","start":"vercel dev"},
+  "dependencies":{"@sparticuz/chromium":"^141.0.0","puppeteer-core":"^24.0.0"},
+  "engines":{"node":">=20"}
+}
