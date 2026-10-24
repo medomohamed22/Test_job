@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/run.js": {
-      "maxDuration": 120,
+      "maxDuration": 240,
       "memory": 2048
     },
     "api/models.js": {
