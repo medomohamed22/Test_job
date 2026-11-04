@@ -1,0 +1,86 @@
+# Codemagic CI/CD for TripMate AI (native Android, Kotlin, Gradle).
+# Docs: https://docs.codemagic.io/yaml-quick-start/building-a-native-android-app/
+#
+# Default workflow `android-debug` needs NO secrets: it builds an installable DEBUG APK in demo mode.
+# Optional secrets (Codemagic → App settings → Environment variables, group "tripmate_optional"):
+#   GOOGLE_SERVICES_JSON  base64 of app/google-services.json  (enables Firebase / Gemini / sign-in)
+#   MAPS_API_KEY          Android-restricted Google Maps Platform key (Maps SDK, Places API (New), Routes API)
+#   GEMINI_CLOUD_MODEL    optional override of the cloud model name
+
+workflows:
+  android-debug:
+    name: TripMate AI · Debug APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+    triggering:
+      events: [push, pull_request]
+      branch_patterns:
+        - pattern: '*'
+          include: true
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Set Android SDK location
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Optional Firebase config (skipped when the secret is absent → demo mode)
+        script: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > "$CM_BUILD_DIR/app/google-services.json"
+            echo "Firebase config installed."
+          else
+            echo "No GOOGLE_SERVICES_JSON: building in demo mode."
+          fi
+      - name: Make gradlew executable
+        script: chmod +x ./gradlew
+      - name: Unit + UI smoke tests (JVM / Robolectric)
+        script: ./gradlew --stacktrace testDebugUnitTest
+      - name: Android Lint
+        script: ./gradlew --stacktrace lintDebug
+      - name: Build debug APK
+        script: ./gradlew --stacktrace assembleDebug
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/reports/**
+      - app/build/test-results/**
+      - app/build/screenshots/*.png
+
+  # OPTIONAL — signed release APK + AAB. Requires a keystore uploaded in
+  # Codemagic → Team settings → Code signing identities → Android keystores (reference name below).
+  # Codemagic then exposes CM_KEYSTORE_PATH, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD,
+  # which app/build.gradle.kts reads. Nothing secret is committed.
+  android-release:
+    name: TripMate AI · Signed release (optional)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+      android_signing:
+        - tripmate_keystore
+      groups:
+        - tripmate_optional
+    triggering:
+      events: [tag]
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+    scripts:
+      - name: Set Android SDK location
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Optional Firebase config
+        script: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > "$CM_BUILD_DIR/app/google-services.json"
+          fi
+      - name: Make gradlew executable
+        script: chmod +x ./gradlew
+      - name: Tests
+        script: ./gradlew testDebugUnitTest
+      - name: Build signed release APK and AAB
+        script: ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/bundle/release/*.aab
+      - app/build/outputs/mapping/release/mapping.txt

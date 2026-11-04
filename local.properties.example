@@ -1,0 +1,6 @@
+# Copy to local.properties (git-ignored). All values are OPTIONAL — without them the app runs in demo mode.
+sdk.dir=/path/to/Android/sdk
+# Android-restricted Maps Platform key (Maps SDK for Android, Places API (New), Routes API)
+tripmate.mapsApiKey=
+# Cloud Gemini model used by Firebase AI Logic
+tripmate.geminiCloudModel=gemini-3.5-flash
