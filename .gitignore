@@ -21,3 +21,7 @@ secrets.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Built APKs (download from Codemagic artifacts instead)
+*.apk
+*.aab
