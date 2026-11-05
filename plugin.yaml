@@ -1,0 +1,36 @@
+name: hermes-ark
+version: "0.1.0"
+description: "Encrypted, versioned backups of your whole Hermes - memory, SOUL, skills, config, cron, sessions and every profile - with item-level restore. Deduplicated snapshots in a repository you control; credentials are never captured unless you opt in and the repository is encrypted."
+author: medomohamed22
+license: MIT
+homepage: https://github.com/medomohamed22/hermes-ark
+tags: [backup, restore, snapshots, encryption, memory, skills]
+requires_hermes: ">=0.21"
+python_dependencies: []
+provides_tools: []
+provides_hooks: []
+requires_env:
+  - name: ARK_PASSPHRASE
+    description: "Passphrase that encrypts the Ark repository (AES-256-GCM, scrypt). Optional for a local unencrypted repository; required to back up credentials."
+    secret: true
+config_schema:
+  repository:
+    type: str
+    default: ""
+    label: "Repository location"
+    description: "Folder that stores snapshots. Empty = <hermes home>/plugin-data/hermes-ark/repo. Use an external drive or a synced folder to keep backups off this disk."
+  include_secrets:
+    type: bool
+    default: false
+    label: "Back up credentials"
+    description: "Also capture .env, auth.json and vault files. Refused unless the repository is encrypted."
+  exclude:
+    type: list
+    default: []
+    label: "Extra exclusions"
+    description: "Paths relative to the Hermes home to leave out, e.g. sessions/large-export."
+  passphrase:
+    type: secret
+    env: ARK_PASSPHRASE
+    label: "Repository passphrase"
+    description: "Encrypts every snapshot. Keep it safe: without it a backup cannot be restored."
