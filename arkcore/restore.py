@@ -121,7 +121,10 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
             plan.write.append(entry)
     # Files in scope today that the snapshot did not have. Secrets are only removed when the
     # snapshot itself captured secrets (otherwise their absence means "not backed up", not "deleted").
+    scope = manifest.get("scope")
     for cur in scan(root, include_secrets=bool(manifest.get("secrets")), extra_excludes=extra_excludes):
+        if scope is not None and classify(cur.rel)[1] not in scope:
+            continue  # a scoped snapshot says nothing about kinds it did not capture
         if cur.rel not in wanted and selector.matches(cur.rel):
             plan.delete.append(cur.rel)
     if not wanted and not plan.delete:

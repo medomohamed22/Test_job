@@ -146,3 +146,14 @@ def test_nothing_to_do_and_no_match(hermes_home, repo):
     assert plan_restore(repo, good, hermes_home, Selector.parse("memory")).empty
     with pytest.raises(RestoreError):
         plan_restore(repo, good, hermes_home, Selector.parse("skill:does-not-exist"))
+
+
+def test_restore_never_touches_runtime_lock_files(hermes_home, repo):
+    good = create_snapshot(repo, hermes_home).snapshot_id
+    lock = hermes_home / "memories" / "MEMORY.md.lock"
+    lock.write_text("")                                                 # memory tool's lock, held by another process
+    (hermes_home / "memories" / "MEMORY.md").write_text("")
+    plan = plan_restore(repo, good, hermes_home, Selector.parse("memory"))
+    assert "memories/MEMORY.md.lock" not in plan.delete
+    apply_plan(repo, plan, hermes_home)
+    assert lock.exists()

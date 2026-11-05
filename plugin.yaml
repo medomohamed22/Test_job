@@ -1,5 +1,5 @@
 name: hermes-ark
-version: "0.2.0"
+version: "0.3.0"
 description: "Encrypted, versioned backups of your whole Hermes - memory, SOUL, skills, config, cron, sessions and every profile - with item-level restore. Deduplicated snapshots in a repository you control; credentials are never captured unless you opt in and the repository is encrypted."
 author: medomohamed22
 license: MIT
@@ -7,8 +7,12 @@ homepage: https://github.com/medomohamed22/hermes-ark
 tags: [backup, restore, snapshots, encryption, memory, skills]
 requires_hermes: ">=0.21"
 python_dependencies: []
-provides_tools: []
-provides_hooks: []
+provides_tools:
+  - ark_checkpoint
+provides_hooks:
+  - on_session_end
+provides_middleware:
+  - tool_execution
 requires_env:
   - name: ARK_PASSPHRASE
     description: "Passphrase that encrypts the Ark repository (AES-256-GCM, scrypt). Optional for a local unencrypted repository; required to back up credentials."
@@ -29,6 +33,36 @@ config_schema:
     default: []
     label: "Extra exclusions"
     description: "Paths relative to the Hermes home to leave out, e.g. sessions/large-export."
+  auto_snapshots:
+    type: bool
+    default: true
+    label: "Automatic snapshots"
+    description: "Checkpoint memory/skills/config before every memory or skill write, and take a full snapshot after sessions every interval."
+  interval_minutes:
+    type: int
+    default: 60
+    label: "Full snapshot interval (minutes of activity)"
+  health_guard:
+    type: bool
+    default: true
+    label: "Health guard"
+    description: "Warn (inside the tool result, so the agent tells you) when memory or skills suddenly shrink or vanish."
+  keep_last:
+    type: int
+    default: 10
+    label: "Keep the last N snapshots"
+  keep_hourly:
+    type: int
+    default: 24
+  keep_daily:
+    type: int
+    default: 7
+  keep_weekly:
+    type: int
+    default: 4
+  keep_monthly:
+    type: int
+    default: 12
   passphrase:
     type: secret
     env: ARK_PASSPHRASE

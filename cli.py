@@ -9,7 +9,9 @@ import sys
 from typing import Optional
 
 from . import settings as S
+from .arkcore.lock import LockBusy, repo_lock
 from .arkcore.repo import LockedError, Repository, RepoError
+from .arkcore.retention import Policy, prune
 from .arkcore.restore import RestoreError, Selector, apply_plan, plan_restore
 from .arkcore.snapshot import create_snapshot, diff_manifests, human_size, list_snapshots
 
@@ -40,6 +42,15 @@ def op_status() -> str:
         last = snaps[-1]
         lines.append(f"   latest: {last.id}  {last.created}  {last.files} files, {human_size(last.bytes)}"
                      + (f"  [{last.label}]" if last.label else ""))
+    from . import auto
+    ap = auto.load_state()
+    lines.append(f"   autopilot: {'on' if st.auto else 'off'} (full snapshot every {st.interval_minutes} min of activity, "
+                 f"checkpoint before every memory/skill write) · health guard: {'on' if st.health_guard else 'off'}")
+    guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error")][-3:]
+    for e in guard:
+        icon = "⚠" if e["kind"] == "guard" else "✗"
+        lines.append(f"   {icon} {e['at'][:16].replace('T', ' ')}  {e['message']}"
+                     + (f"  (saved in {e['snapshot']})" if e.get("snapshot") else ""))
     return "\n".join(lines)
 
 
@@ -47,8 +58,9 @@ def op_snapshot(label: str = "", trigger: str = "manual", skip_if_unchanged: boo
     st = S.load()
     repo = S.open_repo(st)
     include = st.include_secrets and repo.encrypted
-    res = create_snapshot(repo, S.hermes_home(), label=label, trigger=trigger, include_secrets=include,
-                          extra_excludes=st.exclude, skip_if_unchanged=skip_if_unchanged)
+    with repo_lock(S.lock_path(st)):
+        res = create_snapshot(repo, S.hermes_home(), label=label, trigger=trigger, include_secrets=include,
+                              extra_excludes=st.exclude, skip_if_unchanged=skip_if_unchanged)
     if res.unchanged:
         return f"✓ Nothing changed since {res.snapshot_id}; no new snapshot needed."
     msg = (f"✓ Snapshot {res.snapshot_id}: {res.files} files, {human_size(res.bytes_total)} "
@@ -151,13 +163,30 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
                      "(A safety snapshot is taken first, so this restore can itself be undone.)")
         return "\n".join(lines)
     include = st.include_secrets and repo.encrypted
-    safety = create_snapshot(repo, home, label=f"before restore of {selector.describe()} from {sid}",
-                             trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
-    res = apply_plan(repo, plan, home)
+    with repo_lock(S.lock_path(st)):
+        safety = create_snapshot(repo, home, label=f"before restore of {selector.describe()} from {sid}",
+                                 trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
+        res = apply_plan(repo, plan, home)
     lines.append(f"\n✓ Restored {res.written} file(s), removed {res.deleted}. "
                  f"Safety snapshot: {safety.snapshot_id} (undo with `restore {what} {safety.snapshot_id}`).")
     if any(e.get("k") in ("memory", "soul", "skill", "config") for e in plan.write):
         lines.append("  New sessions pick up the restored memory/skills/config; start a new chat (/new) to use them now.")
+    return "\n".join(lines)
+
+
+def op_prune(dry_run: bool = False, forget: Optional[list] = None) -> str:
+    st = S.load()
+    repo = S.open_repo(st)
+    with repo_lock(S.lock_path(st)):
+        res = prune(repo, Policy.from_settings(S.get), dry_run=dry_run, only=forget or None)
+    verb = "Would remove" if dry_run else "Removed"
+    lines = [f"{verb} {len(res.removed_snapshots)} snapshot(s) and {res.removed_blobs} unused blob(s), "
+             f"{'freeing' if not dry_run else 'which would free'} {human_size(res.freed_bytes)}. Kept {res.kept}."]
+    lines += [f"  - {sid}" for sid in res.removed_snapshots[:20]]
+    if not forget:
+        p = Policy.from_settings(S.get)
+        lines.append(f"Policy: last {p.keep_last} · hourly {p.hourly} · daily {p.daily} · weekly {p.weekly} · "
+                     f"monthly {p.monthly} · labelled manual snapshots kept")
     return "\n".join(lines)
 
 
@@ -166,6 +195,8 @@ def _guard(fn, *a, **kw) -> str:
         return fn(*a, **kw)
     except LockedError as exc:
         return f"🔒 {exc}."
+    except LockBusy as exc:
+        return f"✗ {exc}; try again in a moment."
     except (RepoError, RestoreError, ValueError, OSError) as exc:
         return f"✗ {exc}"
 
@@ -181,6 +212,7 @@ SLASH_HELP = """/ark — encrypted, versioned backups of your Hermes
   /ark list            list snapshots
   /ark diff [A] [B]    what changed between two snapshots (default: previous → latest)
   /ark show [snap]     what a snapshot contains
+  /ark prune [dry]     apply the retention policy and free space
   /ark restore <what> [snap] [yes]
                        preview, then restore: all · memory · soul · skills · skill:<name>
                        · config · cron · plugin:<name> · file:<path> · <profile>/memory
@@ -203,6 +235,8 @@ def handle_slash(raw_args: str = "", **_: object) -> str:
         return _guard(op_diff, *(rest[:2] or []))
     if cmd == "show":
         return _guard(op_show, *(rest[:1] or []))
+    if cmd == "prune":
+        return _guard(op_prune, dry_run=bool(rest) and rest[0] in ("dry", "dry-run", "--dry-run"))
     if cmd in ("restore", "rewind"):
         yes = bool(rest) and rest[-1].lower() in ("yes", "--yes", "-y", "confirm")
         args = rest[:-1] if yes else rest
@@ -231,6 +265,10 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     p.add_argument("new", nargs="?", default="latest")
     p = sub.add_parser("show", help="Show what a snapshot contains")
     p.add_argument("snapshot", nargs="?", default="latest")
+    p = sub.add_parser("prune", help="Apply the retention policy and delete unused data")
+    p.add_argument("--dry-run", action="store_true")
+    p = sub.add_parser("forget", help="Delete specific snapshots")
+    p.add_argument("snapshots", nargs="+")
     p = sub.add_parser("restore", help="Restore everything or one item (preview unless --yes)")
     p.add_argument("what", nargs="?", default="all",
                    help="all | memory | soul | skills | skill:<name> | config | cron | sessions | plugin:<name> | file:<path> | <profile>/<what>")
@@ -288,6 +326,10 @@ def run_cli(args: argparse.Namespace) -> int:
         out = _guard(op_diff, args.old, args.new)
     elif cmd == "show":
         out = _guard(op_show, args.snapshot)
+    elif cmd == "prune":
+        out = _guard(op_prune, dry_run=args.dry_run)
+    elif cmd == "forget":
+        out = _guard(op_prune, forget=args.snapshots)
     elif cmd == "restore":
         out = _guard(op_restore, args.what, args.snapshot, yes=args.yes, profile=args.profile)
     else:

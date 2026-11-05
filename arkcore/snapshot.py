@@ -74,16 +74,25 @@ def create_snapshot(
     include_secrets: bool = False,
     extra_excludes: Iterable[str] = (),
     skip_if_unchanged: bool = False,
+    scope: Optional[Iterable[str]] = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> SnapshotResult:
-    """Capture *root* into *repo*. Credentials are refused unless the repo is encrypted."""
+    """Capture *root* into *repo*. Credentials are refused unless the repo is encrypted.
+
+    *scope* limits the snapshot to some kinds (e.g. ``BRAIN``: memory, soul, skills, config, cron) —
+    fast enough to run before every memory/skill write. A scoped snapshot records its scope, and a
+    restore from it never touches anything outside that scope.
+    """
     if include_secrets and not repo.encrypted:
         raise ValueError("refusing to store credentials in an unencrypted repository")
     started = time.monotonic()
     root = Path(root)
+    scope_set = frozenset(scope) if scope is not None else None
     entries, skipped = [], []
     total = new_bytes = new_blobs = 0
     for entry in scan(root, include_secrets=include_secrets, extra_excludes=extra_excludes):
+        if scope_set is not None and classify(entry.rel)[1] not in scope_set:
+            continue
         try:
             data = _read_consistent(entry)
         except (OSError, sqlite3.Error) as exc:
@@ -104,11 +113,11 @@ def create_snapshot(
             progress(entry.rel)
 
     if skip_if_unchanged:
-        ids = repo.snapshot_ids()
-        if ids:
-            prev = repo.load_manifest(ids[-1])
-            if _content_key(prev["files"]) == _content_key(entries):
-                return SnapshotResult(ids[-1], len(entries), total, 0, 0, time.monotonic() - started, skipped, unchanged=True)
+        prev = _latest_covering(repo, scope_set)
+        if prev is not None:
+            prev_files = [f for f in prev["files"] if scope_set is None or f.get("k") in scope_set]
+            if _content_key(prev_files) == _content_key(entries):
+                return SnapshotResult(prev["id"], len(entries), total, 0, 0, time.monotonic() - started, skipped, unchanged=True)
 
     sid = new_snapshot_id()
     manifest = {
@@ -119,11 +128,25 @@ def create_snapshot(
         "host": socket.gethostname(),
         "root": str(root),
         "secrets": include_secrets,
+        "scope": sorted(scope_set) if scope_set is not None else None,
         "files": entries,
         "stats": {"files": len(entries), "bytes": total, "new_bytes": new_bytes, "new_blobs": new_blobs},
     }
     repo.save_manifest(manifest)
     return SnapshotResult(sid, len(entries), total, new_bytes, new_blobs, time.monotonic() - started, skipped)
+
+
+BRAIN = ("memory", "soul", "skill", "config", "cron")
+
+
+def _latest_covering(repo: Repository, scope_set) -> Optional[dict]:
+    """Newest snapshot whose scope includes *scope_set* (a full snapshot covers everything)."""
+    for sid in reversed(repo.snapshot_ids()):
+        m = repo.load_manifest(sid)
+        sc = m.get("scope")
+        if sc is None or (scope_set is not None and scope_set <= set(sc)):
+            return m
+    return None
 
 
 def _content_key(files: list[dict]) -> list[tuple]:
@@ -140,6 +163,7 @@ class SnapshotInfo:
     bytes: int
     new_bytes: int
     host: str
+    scope: Optional[list] = None
 
 
 def list_snapshots(repo: Repository) -> list[SnapshotInfo]:
@@ -148,7 +172,7 @@ def list_snapshots(repo: Repository) -> list[SnapshotInfo]:
         m = repo.load_manifest(sid)
         st = m.get("stats", {})
         out.append(SnapshotInfo(sid, m.get("created", ""), m.get("label", ""), m.get("trigger", ""),
-                                st.get("files", len(m.get("files", []))), st.get("bytes", 0), st.get("new_bytes", 0), m.get("host", "")))
+                                st.get("files", len(m.get("files", []))), st.get("bytes", 0), st.get("new_bytes", 0), m.get("host", ""), m.get("scope")))
     return out
 
 

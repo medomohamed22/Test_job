@@ -42,6 +42,10 @@ SECRET_ROOT_FILES = frozenset({
 SECRET_ROOT_DIRS = frozenset({"pairing"})
 
 SQLITE_SIDECARS = ("-wal", "-shm", "-journal")
+# Runtime files that must never be captured — and therefore never deleted by a restore while
+# another process may hold them (e.g. the memory tool's MEMORY.md.lock).
+RUNTIME_SUFFIXES = (".lock", ".pid", ".sock")
+RUNTIME_PREFIXES = (".ark-", ".tmp-")
 
 
 @dataclass(frozen=True)
@@ -87,6 +91,8 @@ def _excluded_under_home(rel_in_home: PurePosixPath, is_dir: bool) -> Optional[s
     name = parts[-1]
     if not is_dir and any(name.endswith(s) for s in SQLITE_SIDECARS):
         return "sqlite-sidecar"
+    if not is_dir and (name.endswith(RUNTIME_SUFFIXES) or name.startswith(RUNTIME_PREFIXES)):
+        return "runtime"
     return None
 
 
