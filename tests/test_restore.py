@@ -222,3 +222,17 @@ def test_guard_sees_single_nested_skill_deletions(hermes_home):
     shutil.rmtree(hermes_home / "skills" / "productivity" / "b")
     alarms = compare(before, measure(hermes_home))
     assert alarms and "2 skill(s) removed" in alarms[0].message and "a, b" in alarms[0].message
+
+
+def test_skills_restore_leaves_hermes_skill_bookkeeping_alone(hermes_home, repo):
+    import shutil
+    sid = create_snapshot(repo, hermes_home).snapshot_id
+    shutil.rmtree(hermes_home / "skills" / "weather")
+    ledger = hermes_home / "skills" / ".curator_ledger.jsonl"
+    ledger.write_text('{"deleted": "weather"}\n')                       # written by Hermes after the deletion
+    plan = plan_restore(repo, sid, hermes_home, Selector.parse("skills"))
+    assert "skills/.curator_ledger.jsonl" not in plan.delete
+    apply_plan(repo, plan, hermes_home)
+    assert ledger.read_text().startswith('{"deleted"') and (hermes_home / "skills" / "weather" / "SKILL.md").exists()
+    # A full restore is a deliberate whole-state rollback and may still include it.
+    assert "skills/.curator_ledger.jsonl" in plan_restore(repo, sid, hermes_home, Selector()).delete

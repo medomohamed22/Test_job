@@ -23,13 +23,28 @@
 
 **Your passphrase is the only key.** Lose it and the backups cannot be restored; nobody (including Ark) can recover it.
 
+## Off-site storage is untrusted
+
+- With `ARK_PASSPHRASE` set, Ark refuses to open a repository that claims to be unencrypted, and a sync can never
+  switch encryption off on the other side: a tampered `ark.json` cannot downgrade you to planted plaintext snapshots.
+- Key-derivation parameters read from `ark.json` are bounded, so a tampered config cannot hang or exhaust memory on unlock.
+- S3: redirects are refused (they would carry the signed `Authorization` header to another host), responses are
+  size-capped, and XML containing a DTD/entities is refused before parsing.
+- Object keys from a remote listing are validated before anything is written locally (no `..`, no absolute paths).
+
 ## Restores are defensive
 
-- All data is fetched and verified **before the first write**: a damaged backup aborts cleanly.
+- Two phases: every file is streamed from the backup into a temp file beside its target and each blob verified;
+  only when all are ready are they renamed into place. A damaged backup, a full disk or a folder where a file
+  belongs aborts cleanly and leaves the home untouched. Memory stays bounded by one blob, whatever the file size.
 - Paths from a manifest must be plain relative POSIX paths: no `..`, no absolute paths, no Windows drive letters or
   backslashes, no NUL. Writes never follow a symlinked parent out of the Hermes home.
 - Only permission bits are restored (`& 0o777`) — never setuid/setgid/sticky.
 - Decompression is bounded (no decompression bombs from a tampered unencrypted repository).
+- Containment checks are path-aware (`~/.hermes-evil` is not inside `~/.hermes`).
+- Files that could not be read at snapshot time, Ark's own repository, and Hermes' skill bookkeeping
+  (`skills/.curator_ledger.jsonl`) are never deleted by a restore of that kind.
+- Names that reach the model (skill folders, labels) are sanitized: no newlines, quotes, brackets or control characters.
 - The sessions database is restored only while the gateway is stopped; runtime lock files are never touched.
 
 ## Who can trigger what
@@ -42,6 +57,13 @@
 
 `/ark` follows the gateway's own access control: anyone your gateway lets talk to Hermes can use it, exactly like
 they can use the terminal tools. The Desktop routes sit behind the dashboard's authentication.
+
+## Testing
+
+`tests/test_security.py` reproduces each issue above (each test fails on the code before its fix), plus fuzzing:
+5,000 random restore paths, 5,000 selector strings and 300 random bit-flips in ciphertext. `bandit` and `ruff`
+(security rules) run clean apart from justified, documented items. The Desktop API answers 401 to every
+unauthenticated request, cross-origin included.
 
 ## Limits (be aware)
 

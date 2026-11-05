@@ -63,6 +63,10 @@ class Selector:
             return False
         if self.kind and kind != self.kind:
             return False
+        if self.kind == "skill" and not item:
+            # Files directly in skills/ (the curator's .curator_ledger.jsonl, .bundled_manifest) are Hermes'
+            # own bookkeeping, not a skill: a skills restore must neither roll them back nor delete them.
+            return False
         if self.item and item != self.item and not item.endswith("/" + self.item):
             return False   # "skill:maps" matches the nested "productivity/maps"
         return True
