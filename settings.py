@@ -8,17 +8,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from .arkcore.backends import LocalBackend
+from .arkcore.backends import Backend, BackendError, LocalBackend
 from .arkcore.repo import Repository
 
 PLUGIN_NAME = "hermes-ark"
 
 _get_config: Callable[[str, Any], Any] = lambda key, default=None: default  # replaced in register()
+_set_config: Callable[[str, Any], None] = lambda key, value: None
 
 
 def bind(ctx) -> None:
-    global _get_config
+    global _get_config, _set_config
     _get_config = ctx.get_config
+    _set_config = ctx.set_config
+
+
+def set_value(key: str, value: Any) -> None:
+    _set_config(key, value)
 
 
 def hermes_home() -> Path:
@@ -56,6 +62,10 @@ class Settings:
     auto: bool = True
     interval_minutes: int = 60
     health_guard: bool = True
+    remote: str = ""
+    s3_endpoint: str = ""
+    s3_region: str = "auto"
+    auto_push: bool = True
 
 
 def _int(value: Any, default: int) -> int:
@@ -75,6 +85,10 @@ def load() -> Settings:
         auto=bool(get("auto_snapshots", True)),
         interval_minutes=_int(get("interval_minutes", 60), 60),
         health_guard=bool(get("health_guard", True)),
+        remote=str(get("remote", "") or "").strip(),
+        s3_endpoint=str(get("s3_endpoint", "") or "").strip(),
+        s3_region=str(get("s3_region", "auto") or "auto").strip(),
+        auto_push=bool(get("auto_push", True)),
     )
 
 
@@ -103,3 +117,32 @@ def open_repo(settings: Optional[Settings] = None) -> Repository:
             _cache.clear()
             _cache[key] = repo
         return repo
+
+
+def _secret(name: str) -> str:
+    from agent.secret_scope import get_secret
+    try:
+        return get_secret(name) or ""
+    except Exception:
+        return ""
+
+
+def remote_backend(st: Optional[Settings] = None, url: str = "", endpoint: str = "", region: str = "") -> Backend:
+    """The off-site copy: ``s3://bucket/prefix`` (S3-compatible) or a folder path (USB drive, NAS,
+    Syncthing/Dropbox folder...). Raises BackendError when none is configured."""
+    st = st or load()
+    url = (url or st.remote).strip()
+    if not url:
+        raise BackendError("no remote configured: set `remote` (s3://bucket/prefix or a folder) in the plugin settings, "
+                           "or pass --remote")
+    if url.startswith("s3://"):
+        from .arkcore.s3 import S3Backend, S3Config
+        return S3Backend(S3Config.from_url(
+            url, endpoint=endpoint or st.s3_endpoint, region=region or st.s3_region,
+            access_key=_secret("ARK_S3_ACCESS_KEY_ID"), secret_key=_secret("ARK_S3_SECRET_ACCESS_KEY")))
+    if "://" in url:
+        raise BackendError(f"unsupported remote {url!r} (use s3://bucket/prefix or a folder path)")
+    target = Path(url).expanduser()
+    if target.resolve() == load().repository.resolve():
+        raise BackendError("the remote folder is the same as the local repository")
+    return LocalBackend(target)

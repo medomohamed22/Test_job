@@ -173,3 +173,27 @@ def test_on_session_end_runs_full_snapshot_in_background(plugin):
     assert plugin.auto.load_state().get("last_full_id")
     plugin.auto.on_session_end()   # within the interval: no second run
     assert not plugin.auto._full_running.is_set()
+
+
+def test_push_pull_verify_and_restore_keeps_offsite_settings(plugin, hermes_home, tmp_path, monkeypatch):
+    store = {}
+    monkeypatch.setattr(plugin.settings, "_get_config", lambda k, d=None: store.get(k, d))
+    monkeypatch.setattr(plugin.settings, "_set_config", lambda k, v: store.__setitem__(k, v))
+    plugin.cli.op_snapshot(label="no remote yet")
+    old = plugin.settings.open_repo().snapshot_ids()[-1]
+    usb = tmp_path / "usb-drive"
+    store["remote"] = str(usb)
+    assert "Pushed" in plugin.cli.op_push()
+    assert "up to date" in plugin.cli.op_push()
+    assert "Verified" in plugin.cli.op_verify(remote=True)
+    # Restoring an old config must not silently disable this machine's off-site copy.
+    store.pop("remote")                       # simulate the restored config.yaml lacking it...
+    st_before = plugin.settings.Settings(**{**plugin.settings.load().__dict__, "remote": str(usb)})
+    assert plugin.cli._keep_offsite_settings(st_before) is True
+    assert store["remote"] == str(usb)
+    # `latest` skips pre-restore safety copies.
+    (hermes_home / "memories" / "MEMORY.md").write_text("")
+    plugin.cli.op_restore("memory", old, yes=True)
+    repo = plugin.settings.open_repo()
+    sid, note = plugin.cli._restore_target(repo, "latest")
+    assert sid != repo.snapshot_ids()[-1] and "safety" in note

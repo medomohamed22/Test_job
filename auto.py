@@ -72,6 +72,31 @@ def record_event(kind: str, message: str, snapshot_id: Optional[str] = None) -> 
         tmp.replace(_state_file())
 
 
+def record_push(objects: int, nbytes: int, where: str) -> None:
+    _update_state(last_push={"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "objects": objects,
+                             "bytes": nbytes, "where": where})
+
+
+def record_verify(where: str, ok: bool, snapshots: int, damaged: int) -> None:
+    _update_state(last_verify={"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "where": where,
+                               "ok": ok, "snapshots": snapshots, "damaged": damaged})
+
+
+def auto_push() -> None:
+    """Push after an automatic snapshot when a remote is configured. Failures are recorded, not raised."""
+    st = S.load()
+    if not (st.remote and st.auto_push):
+        return
+    from .arkcore.sync import sync
+    try:
+        remote = S.remote_backend(st)
+        res = sync(S.backend(st), remote)
+        record_push(res.copied, res.bytes, remote.label)
+    except Exception as exc:
+        logger.warning("Hermes Ark: off-site push failed: %s", exc)
+        record_event("error", f"off-site push failed: {exc}")
+
+
 # ---- repository access ------------------------------------------------------------------------
 
 def _ready_repo(st: S.Settings) -> Optional[Repository]:
@@ -136,7 +161,8 @@ def on_session_end(**_: Any) -> None:
 
     def run():
         try:
-            full_snapshot()
+            if full_snapshot() is not None:
+                auto_push()      # outside the lock: blobs are immutable, uploads can be slow
         except LockBusy:
             pass
         except Exception as exc:

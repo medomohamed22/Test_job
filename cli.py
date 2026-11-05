@@ -9,9 +9,11 @@ import sys
 from typing import Optional
 
 from . import settings as S
+from .arkcore.backends import BackendError
 from .arkcore.lock import LockBusy, repo_lock
 from .arkcore.repo import LockedError, Repository, RepoError
 from .arkcore.retention import Policy, prune
+from .arkcore.sync import SyncError, sync, verify
 from .arkcore.restore import RestoreError, Selector, apply_plan, plan_restore
 from .arkcore.snapshot import create_snapshot, diff_manifests, human_size, list_snapshots
 
@@ -46,6 +48,15 @@ def op_status() -> str:
     ap = auto.load_state()
     lines.append(f"   autopilot: {'on' if st.auto else 'off'} (full snapshot every {st.interval_minutes} min of activity, "
                  f"checkpoint before every memory/skill write) · health guard: {'on' if st.health_guard else 'off'}")
+    if st.remote:
+        push = ap.get("last_push")
+        lines.append(f"   off-site: {st.remote}" + (f" · last push {push['at'][:16].replace('T', ' ')} ({push['objects']} objects)" if push else " · never pushed")
+                     + (" · auto-push on" if st.auto_push else ""))
+    else:
+        lines.append("   off-site: none — set `remote` to an s3:// bucket or a folder, then `hermes ark push`")
+    ver = ap.get("last_verify")
+    if ver:
+        lines.append(f"   last verify: {ver['at'][:16].replace('T', ' ')} {'✓ ok' if ver['ok'] else '✗ problems'} ({ver['where']})")
     guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error")][-3:]
     for e in guard:
         icon = "⚠" if e["kind"] == "guard" else "✗"
@@ -132,12 +143,42 @@ def _gateway_running() -> bool:
         return False
 
 
+def _restore_target(repo: Repository, ref: str) -> tuple[str, str]:
+    """``latest`` means the newest *real* snapshot: safety snapshots taken before a previous restore
+    capture the state being replaced, which is rarely what someone recovering a machine wants."""
+    if ref not in ("latest", "last", "HEAD"):
+        return repo.resolve(ref), ""
+    ids = repo.snapshot_ids()
+    if not ids:
+        repo.resolve(ref)  # raises "no snapshots"
+    for sid in reversed(ids):
+        if repo.load_manifest(sid).get("trigger") != "pre-restore":
+            if sid != ids[-1]:
+                return sid, (f"(latest = {sid}, the newest snapshot that is not a pre-restore safety copy; "
+                             f"use `{ids[-1]}` to restore that safety copy)")
+            return sid, ""
+    return ids[-1], ""
+
+
+def _keep_offsite_settings(before: "S.Settings") -> bool:
+    """A restored config.yaml may predate the off-site setup on this machine; keep it working."""
+    if not before.remote:
+        return False
+    after = S.load()
+    changed = False
+    for key, value in (("remote", before.remote), ("s3_endpoint", before.s3_endpoint), ("s3_region", before.s3_region)):
+        if value and getattr(after, key) != value:
+            S.set_value(key, value)
+            changed = True
+    return changed
+
+
 def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, profile: Optional[str] = None,
                from_chat: bool = False) -> str:
     """Preview (default) or apply a restore. Applying always takes a safety snapshot first."""
     st = S.load()
     repo = S.open_repo(st)
-    sid = repo.resolve(ref)
+    sid, note = _restore_target(repo, ref)
     selector = Selector.parse(what, profile)
     home = S.hermes_home()
     plan = plan_restore(repo, sid, home, selector, extra_excludes=st.exclude)
@@ -148,7 +189,7 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
                 "  Stop the gateway (`hermes gateway stop`) and run in a terminal:\n"
                 f"    hermes ark restore {what} {ref} --yes\n"
                 "  Or restore everything except sessions, e.g. `memory`, `skills`, `config`.")
-    lines = [f"Restore {selector.describe()} from {sid}:"]
+    lines = ([note] if note else []) + [f"Restore {selector.describe()} from {sid}:"]
     for e in plan.write[:25]:
         state = "recreate" if not (home / e["p"]).exists() else "revert"
         lines.append(f"  ↺ {KIND_ICONS.get(e.get('k', 'other'), '📄')} {e['p']}  ({state}, {human_size(e['s'])})")
@@ -167,8 +208,11 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
         safety = create_snapshot(repo, home, label=f"before restore of {selector.describe()} from {sid}",
                                  trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
         res = apply_plan(repo, plan, home)
+    kept = _keep_offsite_settings(st)
     lines.append(f"\n✓ Restored {res.written} file(s), removed {res.deleted}. "
                  f"Safety snapshot: {safety.snapshot_id} (undo with `restore {what} {safety.snapshot_id}`).")
+    if kept:
+        lines.append("  Kept this machine's Ark off-site settings (remote, endpoint) in the restored config.")
     if any(e.get("k") in ("memory", "soul", "skill", "config") for e in plan.write):
         lines.append("  New sessions pick up the restored memory/skills/config; start a new chat (/new) to use them now.")
     return "\n".join(lines)
@@ -190,6 +234,71 @@ def op_prune(dry_run: bool = False, forget: Optional[list] = None) -> str:
     return "\n".join(lines)
 
 
+def op_push(mirror: bool = False) -> str:
+    st = S.load()
+    remote = S.remote_backend(st)
+    S.open_repo(st)  # fail early on a locked/wrong passphrase
+    res = sync(S.backend(st), remote, mirror=mirror)
+    from . import auto
+    auto.record_push(res.copied, res.bytes, remote.label)
+    if not res.copied and not res.deleted:
+        return f"✓ {remote.label} is up to date ({res.skipped} objects)."
+    return (f"✓ Pushed to {remote.label}: {res.copied} object(s), {human_size(res.bytes)}"
+            f" · {len(res.snapshots_copied)} new snapshot(s)" + (f" · removed {res.deleted} stale object(s)" if res.deleted else ""))
+
+
+def op_pull(remote_url: str = "", endpoint: str = "", region: str = "") -> str:
+    """Bring the off-site copy here (new machine, or after losing the disk)."""
+    st = S.load()
+    remote = S.remote_backend(st, remote_url, endpoint, region)
+    if not Repository.exists(remote):
+        return f"✗ No Ark repository at {remote.label}."
+    Repository.open(remote, S.passphrase())          # verify the passphrase before copying anything
+    res = sync(remote, S.backend(st))
+    if remote_url:
+        S.set_value("remote", remote_url)
+        if endpoint:
+            S.set_value("s3_endpoint", endpoint)
+        if region:
+            S.set_value("s3_region", region)
+    S._cache.clear()
+    repo = S.open_repo(st)
+    snaps = repo.snapshot_ids()
+    latest = _restore_target(repo, "latest")[0] if snaps else "-"
+    return (f"✓ Pulled {res.copied} object(s), {human_size(res.bytes)} from {remote.label} into {st.repository}.\n"
+            f"  {len(snaps)} snapshot(s) available, latest {latest}.\n"
+            "  Next: stop the gateway, then `hermes ark restore all latest` to preview and `--yes` to bring this Hermes back.")
+
+
+def op_verify(remote: bool = False, quick: bool = False) -> str:
+    st = S.load()
+    if remote:
+        be = S.remote_backend(st)
+        repo = Repository.open(be, S.passphrase())
+        where = be.label
+    else:
+        repo = S.open_repo(st)
+        where = str(st.repository)
+    rep = verify(repo, read_data=not quick)
+    from . import auto
+    auto.record_verify(where, rep.ok, rep.snapshots, len(rep.damaged_snapshots()))
+    how = "existence of every blob" if quick else "decrypted and re-hashed every blob"
+    if rep.ok:
+        return (f"✓ Verified {where}: {rep.snapshots} snapshot(s) restorable — {how} "
+                f"({rep.blobs_checked} blobs, {human_size(rep.bytes_checked)})."
+                + (f" {rep.unreferenced} unused blob(s) can be freed with `prune`." if rep.unreferenced else ""))
+    lines = [f"✗ Problems in {where}: {len(rep.missing)} missing and {len(rep.corrupt)} damaged blob(s), "
+             f"{len(rep.unreadable_snapshots)} unreadable snapshot(s)."]
+    damaged = rep.damaged_snapshots()
+    lines.append(f"  Affected snapshots ({len(damaged)}): " + ", ".join(damaged[:10]) + (" …" if len(damaged) > 10 else ""))
+    good = [s for s in repo.snapshot_ids() if s not in damaged]
+    if good:
+        lines.append(f"  Newest intact snapshot: {good[-1]}")
+    if not remote:
+        lines.append("  If you have an off-site copy, `hermes ark pull` re-fetches missing data.")
+    return "\n".join(lines)
+
+
 def _guard(fn, *a, **kw) -> str:
     try:
         return fn(*a, **kw)
@@ -197,7 +306,7 @@ def _guard(fn, *a, **kw) -> str:
         return f"🔒 {exc}."
     except LockBusy as exc:
         return f"✗ {exc}; try again in a moment."
-    except (RepoError, RestoreError, ValueError, OSError) as exc:
+    except (RepoError, RestoreError, SyncError, BackendError, ValueError, OSError) as exc:
         return f"✗ {exc}"
 
 
@@ -213,6 +322,8 @@ SLASH_HELP = """/ark — encrypted, versioned backups of your Hermes
   /ark diff [A] [B]    what changed between two snapshots (default: previous → latest)
   /ark show [snap]     what a snapshot contains
   /ark prune [dry]     apply the retention policy and free space
+  /ark push            copy new snapshots to the off-site remote
+  /ark verify [quick] [remote]  prove the backups can be restored
   /ark restore <what> [snap] [yes]
                        preview, then restore: all · memory · soul · skills · skill:<name>
                        · config · cron · plugin:<name> · file:<path> · <profile>/memory
@@ -235,6 +346,10 @@ def handle_slash(raw_args: str = "", **_: object) -> str:
         return _guard(op_diff, *(rest[:2] or []))
     if cmd == "show":
         return _guard(op_show, *(rest[:1] or []))
+    if cmd == "push":
+        return _guard(op_push)
+    if cmd == "verify":
+        return _guard(op_verify, remote="remote" in rest, quick="quick" in rest)
     if cmd == "prune":
         return _guard(op_prune, dry_run=bool(rest) and rest[0] in ("dry", "dry-run", "--dry-run"))
     if cmd in ("restore", "rewind"):
@@ -267,6 +382,15 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     p.add_argument("snapshot", nargs="?", default="latest")
     p = sub.add_parser("prune", help="Apply the retention policy and delete unused data")
     p.add_argument("--dry-run", action="store_true")
+    p = sub.add_parser("push", help="Copy new snapshots to the off-site remote")
+    p.add_argument("--mirror", action="store_true", help="Also delete remote objects that were pruned locally")
+    p = sub.add_parser("pull", help="Fetch the off-site repository to this machine (new machine / disaster recovery)")
+    p.add_argument("--remote", default="", help="s3://bucket/prefix or a folder (saved to settings)")
+    p.add_argument("--endpoint", default="", help="S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com")
+    p.add_argument("--region", default="", help="S3 region (R2: auto)")
+    p = sub.add_parser("verify", help="Prove every snapshot can be restored")
+    p.add_argument("--remote", action="store_true", help="Verify the off-site copy instead of the local one")
+    p.add_argument("--quick", action="store_true", help="Only check that every blob exists")
     p = sub.add_parser("forget", help="Delete specific snapshots")
     p.add_argument("snapshots", nargs="+")
     p = sub.add_parser("restore", help="Restore everything or one item (preview unless --yes)")
@@ -328,6 +452,12 @@ def run_cli(args: argparse.Namespace) -> int:
         out = _guard(op_show, args.snapshot)
     elif cmd == "prune":
         out = _guard(op_prune, dry_run=args.dry_run)
+    elif cmd == "push":
+        out = _guard(op_push, mirror=args.mirror)
+    elif cmd == "pull":
+        out = _guard(op_pull, args.remote, args.endpoint, args.region)
+    elif cmd == "verify":
+        out = _guard(op_verify, remote=args.remote, quick=args.quick)
     elif cmd == "forget":
         out = _guard(op_prune, forget=args.snapshots)
     elif cmd == "restore":
