@@ -70,17 +70,36 @@ the agent, so Ark's `tool_execution` middleware now guards Ark itself:
   resulting file, so unrelated config edits still work). Read-only commands (`status`, `list`, `diff`, `show`,
   `verify`, `snap`, a restore preview) and `ark_checkpoint` stay available. The block message tells the model it is
   probably a prompt injection and to warn the user; the attempt is logged (⛔ in `hermes ark status`, Desktop banner).
-- **Tamper alarm after running**: text matching cannot see through base64 or a script file, so every command/file
-  tool call is fingerprinted before and after (Ark's settings and enabled state, `ARK_*` secret names, the
-  repository, its snapshots, Ark's code). Any change is reported in the tool result and on the Desktop (🚨), and
-  **Ark's settings are put back automatically**.
+- Flags are matched the way argparse reads them (`--ye` is `--yes`), and Ark's own CLI no longer accepts
+  abbreviated flags at all. Destructive subcommands are caught however Hermes is invoked (`${H}es ark prune`).
+  File checks cover V4A multi-file patches, MCP/other plugins' file tools, parent folders of Ark's data, and
+  relative paths resolved from the agent's working directory.
+- **Tamper detection, during and between tool calls.** Text matching cannot see through base64, a script file or a
+  background job that strikes after the tool returned, so Ark fingerprints itself around every tool call (except
+  read-only tools) and a watchdog in the gateway checks every 10 seconds: Ark's settings and enabled state, `ARK_*`
+  secrets, the repository key file, its snapshots and data, and Ark's own code. On a change it tells the agent and
+  the user (tool result, `hermes ark status`, Desktop 🚨) and **repairs what it can**: settings, enabled state,
+  secrets, the key file and code are put back, and a fresh snapshot is taken (and pushed) at once.
+- Damage to the backups themselves is always repaired. Changes to settings, enabled state or secrets are put back
+  only **while the agent is active** — within 30 minutes of its last tool call, or while a background process it
+  started is still running; outside that window they are treated as your own change and only logged (ℹ).
+  Ark's own deletions (retention, your `hermes ark prune/forget`) are recorded and never raise an alarm; a deletion
+  by another process *during* an agent tool call does, even through Ark's own CLI.
+- A repository fingerprint is kept on disk, so damage done while Hermes was not running is found at the next start.
+- **Quarantine**: a call that damaged Ark (Ark repaired it) is refused if the agent tries the identical call again —
+  across plugin reloads and restarts, and whatever tool name or timeout the model wraps it in.
+- When something disables Ark, the running gateway unloads it; Ark's watchdog outlives that, re-enables Ark through
+  the public `hermes plugins enable` (which makes the gateway load it again) and falls back to a direct config write.
 - The agent cannot grant itself access: `allow_agent_admin` (off by default) is itself an Ark setting.
 - Snapshots the agent labels via `ark_checkpoint` are pinned only up to the newest 20, so a looping agent cannot fill
   the disk with history retention may never delete. Your own labelled snapshots stay pinned forever.
 
-Limits: an agent with an approved, unrestricted shell runs as your user; it could in principle disable Ark in ways
-that leave no trace until the next tool call. Off-site copies (`push`, ideally to storage with object versioning or
-retention lock) are the backstop for that.
+Limits: an agent with an approved, unrestricted shell runs as your user. A carefully disguised job that waits more
+than 30 minutes after the agent's last action, escapes its process session, and only switches Ark off (without
+touching the backups) is treated as your own change; and nothing local survives deleting both the repository and
+Ark's data folder. Off-site copies are the backstop: `push` to storage with object versioning or a retention lock,
+using credentials **without delete permission** (Ark never deletes remotely unless you run `push --mirror`) — then
+even stolen `ARK_S3_*` keys cannot erase your history.
 
 `/ark` follows the gateway's own access control: anyone your gateway lets talk to Hermes can use it, exactly like
 they can use the terminal tools. The Desktop routes sit behind the dashboard's authentication.
@@ -90,7 +109,8 @@ they can use the terminal tools. The Desktop routes sit behind the dashboard's a
 `tests/test_security.py` reproduces each issue above (each test fails on the code before its fix), plus fuzzing:
 5,000 random restore paths, 5,000 selector strings and 300 random bit-flips in ciphertext. `bandit` and `ruff`
 (security rules) run clean apart from justified, documented items. `tests/test_selfdefense.py` replays the prompt-
-injection attacks (30 hostile commands, 16 legitimate ones that must still work, file edits, disguised attacks).
+injection attacks and every bypass found while red-teaming the defense (abbreviated flags, V4A patches, MCP tools,
+background and delayed jobs, attacks while Hermes was down), plus the legitimate commands that must keep working.
 The same scenarios were run end-to-end in Hermes with a free real model (memory wipe, skill deletion, injected
 file, hex-encoded Python, a base64 script): each was blocked or caught and undone. The Desktop API answers 401 to every
 unauthenticated request, cross-origin included.

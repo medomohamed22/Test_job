@@ -57,9 +57,9 @@ def op_status() -> str:
     ver = ap.get("last_verify")
     if ver:
         lines.append(f"   last verify: {ver['at'][:16].replace('T', ' ')} {'✓ ok' if ver['ok'] else '✗ problems'} ({ver['where']})")
-    guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error", "blocked", "tamper")][-3:]
+    guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error", "blocked", "tamper", "info")][-4:]
     for e in guard:
-        icon = {"guard": "⚠", "blocked": "⛔", "tamper": "🚨"}.get(e["kind"], "✗")
+        icon = {"guard": "⚠", "blocked": "⛔", "tamper": "🚨", "info": "ℹ"}.get(e["kind"], "✗")
         lines.append(f"   {icon} {e['at'][:16].replace('T', ' ')}  {e['message']}"
                      + (f"  (saved in {e['snapshot']})" if e.get("snapshot") else ""))
     return "\n".join(lines)
@@ -219,10 +219,14 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
 
 
 def op_prune(dry_run: bool = False, forget: Optional[list] = None) -> str:
+    from . import auto
     st = S.load()
     repo = S.open_repo(st)
     with repo_lock(S.lock_path(st)):
-        res = prune(repo, Policy.from_settings(S.get), dry_run=dry_run, only=forget or None)
+        res = prune(repo, Policy.from_settings(S.get), dry_run=dry_run, only=forget or None,
+                    protect=() if forget else auto.protected_snapshots())
+    if not dry_run and (res.removed_snapshots or res.removed_blobs):
+        auto.record_deletions(res.removed_snapshots)
     verb = "Would remove" if dry_run else "Removed"
     lines = [f"{verb} {len(res.removed_snapshots)} snapshot(s) and {res.removed_blobs} unused blob(s), "
              f"{'freeing' if not dry_run else 'which would free'} {human_size(res.freed_bytes)}. Kept {res.kept}."]
@@ -393,6 +397,9 @@ def handle_slash(raw_args: str = "", **_: object) -> str:
 
 def setup_parser(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="ark_command")
+    # No abbreviated flags: ``--ye`` must not silently mean ``--yes`` (it also defeats command screening).
+    _add_parser = sub.add_parser
+    sub.add_parser = lambda *a, **kw: _add_parser(*a, **{"allow_abbrev": False, **kw})  # type: ignore[method-assign]
     p = sub.add_parser("init", help="Create the backup repository")
     p.add_argument("--no-encryption", action="store_true", help="Create an unencrypted repository (not recommended)")
     sub.add_parser("status", help="Show repository status")

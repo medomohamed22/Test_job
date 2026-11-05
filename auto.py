@@ -209,6 +209,8 @@ def full_snapshot(trigger: str = "auto", label: str = "", force_prune: bool = Fa
         if force_prune or now - load_state().get("last_prune", 0) >= PRUNE_EVERY_S:
             pr = prune(repo, Policy.from_settings(S.get), protect=protected_snapshots())
             _update_state(last_prune=now)
+            if pr.removed_snapshots or pr.removed_blobs:
+                record_deletions(pr.removed_snapshots)
             if pr.removed_snapshots:
                 logger.info("Hermes Ark: pruned %d snapshot(s), %d blob(s)", len(pr.removed_snapshots), pr.removed_blobs)
     return res.snapshot_id
@@ -305,24 +307,348 @@ def _agent_admin() -> bool:
         return False
 
 
-def _tamper_checked(call):
-    """Wrap a command/file tool so a change to Ark itself is reported, however it was disguised."""
-    def wrapped(a):
+_DELETIONS_MAX = 50
+# Deletions made by *this* process (autopilot retention in the gateway, Desktop actions). During an
+# agent tool call only these are trusted: a deletion from another process in that window — even through
+# Ark's own CLI, run from a disguised script — is the agent's doing.
+_local_deletions: list[tuple[float, list[str]]] = []
+
+
+def record_deletions(snapshot_ids: list[str]) -> None:
+    """Ark's own deletions (retention, `forget`), so the tamper check does not mistake them for an attack."""
+    with _state_lock:
+        _local_deletions.append((time.time(), list(snapshot_ids)))
+        del _local_deletions[:-_DELETIONS_MAX]
+    with _state_guard():
+        st = load_state()
+        dels = st.get("deletions", [])
+        dels.append({"at": time.time(), "ids": list(snapshot_ids)})
+        st["deletions"] = dels[-_DELETIONS_MAX:]
+        _write_state(st)
+
+
+def _deleted_by_ark(since: float, *, between_calls: bool) -> frozenset:
+    if between_calls:          # the user's own `hermes ark prune/forget` in their terminal is recorded on disk
+        records = [(d.get("at", 0), d.get("ids", [])) for d in load_state().get("deletions", [])]
+    else:
+        with _state_lock:
+            records = list(_local_deletions)
+    out: set[str] = set()
+    for at, ids in records:
+        if at >= since - 5:
+            out.update(ids)
+            out.add("*")                                   # some deletion happened: blob counts may drop
+    return frozenset(out)
+
+
+def _resnapshot() -> None:
+    """After history was destroyed: take a fresh full snapshot (and push it) right away."""
+    def run():
         try:
-            before = D.fingerprint()
+            full_snapshot(trigger="tamper")
+            auto_push()
+        except Exception as exc:
+            logger.warning("Hermes Ark: snapshot after tamper alarm failed: %s", exc)
+    threading.Thread(target=run, name="hermes-ark-tamper-snapshot", daemon=True).start()
+
+
+# ---- who is acting: agent activity window and the processes the agent started -------------------
+
+AGENT_WINDOW_S = 30 * 60
+_activity = {"last": 0.0}
+_agent_pids: dict[int, int] = {}            # pid -> session id, of background processes the agent started
+_pending_notes: list[str] = []
+_watch_lock = threading.Lock()
+# Calls proven to damage Ark (during the call, or as a background job running when damage appeared).
+# A model that ignores the alarm gets the identical call refused instead of another try.
+_quarantine: set[str] = set()
+_bg_calls: list[tuple[float, str]] = []
+
+
+def _call_key(tool_name: str, args: Any) -> str:
+    return D.call_key(D._unwrap(tool_name, args)[1])
+
+
+# All of this also lives on disk: re-enabling Ark after an attack makes Hermes reload the plugin, and a
+# fresh module must not forget who was active or which calls are quarantined.
+QUARANTINE_TTL_S = 7 * 86400
+_loaded = threading.Event()
+
+
+def _digest(key: str) -> str:
+    import hashlib
+    return hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()
+
+
+_persist_seen = {"mtime": -1}
+
+
+def _load_persisted() -> None:
+    """Merge what other instances of Ark in this process (a reloaded plugin, or the watchdog that survived
+    an unload) or earlier runs wrote: activity time, background processes, quarantine."""
+    try:
+        mtime = _state_file().stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    if _loaded.is_set() and mtime == _persist_seen["mtime"]:
+        return
+    _loaded.set()
+    _persist_seen["mtime"] = mtime
+    try:
+        st = load_state()
+    except Exception:
+        return
+    now = time.time()
+    _activity["last"] = max(_activity["last"], float(st.get("agent_activity", 0) or 0))
+    with _watch_lock:
+        for pid, sid in (st.get("agent_pids") or {}).items():
+            try:
+                _agent_pids[int(pid)] = int(sid)
+            except (TypeError, ValueError):
+                continue
+        for q in st.get("quarantine") or []:
+            if isinstance(q, dict) and now - q.get("at", 0) < QUARANTINE_TTL_S:
+                _quarantine.add(q.get("h", ""))
+
+
+def quarantined(tool_name: str, args: Any) -> bool:
+    _load_persisted()
+    key = _call_key(tool_name, args)
+    if not key:
+        return False
+    with _watch_lock:
+        return _digest(key) in _quarantine
+
+
+def _quarantine_call(key: str) -> None:
+    if not key:
+        return
+    h = _digest(key)
+    with _watch_lock:
+        _quarantine.add(h)
+    try:
+        with _state_guard():
+            st = load_state()
+            now = time.time()
+            q = [x for x in st.get("quarantine") or [] if isinstance(x, dict) and now - x.get("at", 0) < QUARANTINE_TTL_S
+                 and x.get("h") != h]
+            q.append({"at": now, "h": h})
+            st["quarantine"] = q[-200:]
+            _write_state(st)
+    except Exception as exc:
+        logger.debug("Hermes Ark could not persist quarantine: %s", exc)
+
+
+_persisted_activity = {"at": 0.0}
+
+
+def _note_agent_activity(result: Any = None, call_key: str = "") -> None:
+    _load_persisted()
+    now = time.time()
+    _activity["last"] = now
+    if now - _persisted_activity["at"] > 30:
+        _persisted_activity["at"] = now
+        try:
+            _update_state(agent_activity=now)
         except Exception:
-            return call(a)
-        result = call(a)
+            pass
+    if result is None:
+        return
+    try:
+        data = json.loads(result) if isinstance(result, str) else result
+        pid = int(data.get("pid")) if isinstance(data, dict) and data.get("pid") else 0
+    except (ValueError, TypeError, AttributeError):
+        pid = 0
+    if pid > 1:
         try:
-            after = D.fingerprint()
-            changes = D.tamper_changes(before, after, ark_busy=_full_running.is_set())
-            if changes:
-                restored = D.revert_settings(before.get("settings"), after.get("settings"))
-                logger.warning("Hermes Ark tamper alarm: %s (restored: %s)", "; ".join(changes), restored)
-                record_event("tamper", "; ".join(changes) + (f" — restored {', '.join(restored)}" if restored else ""))
-                return _attach_note(result, D.format_tamper(changes, restored), key="ark_tamper_alarm")
+            sid = os.getsid(pid)
+        except (OSError, AttributeError):
+            sid = 0
+        with _watch_lock:
+            _agent_pids[pid] = sid
+            if call_key:
+                _bg_calls.append((time.time(), call_key))
+                del _bg_calls[:-50]
+            pids = {str(k): v for k, v in list(_agent_pids.items())[-50:]}
+        try:
+            _update_state(agent_pids=pids)
+        except Exception:
+            pass
+
+
+def _agent_processes_alive() -> bool:
+    with _watch_lock:
+        tracked = dict(_agent_pids)
+    alive = False
+    for pid in tracked:
+        try:
+            os.kill(pid, 0)
+            alive = True
+            continue
+        except OSError:
+            pass
+        with _watch_lock:
+            _agent_pids.pop(pid, None)
+    if alive:
+        return True
+    sids = {sid for sid in tracked.values() if sid and sid != os.getsid(0)}
+    if sids and os.path.isdir("/proc"):              # children that outlived their parent keep its session
+        for entry in os.listdir("/proc"):
+            if entry.isdigit():
+                try:
+                    if os.getsid(int(entry)) in sids:
+                        return True
+                except OSError:
+                    continue
+    return False
+
+
+def agent_active() -> bool:
+    _load_persisted()
+    return time.time() - _activity["last"] < AGENT_WINDOW_S or _agent_processes_alive()
+
+
+def _queue_note(note: str) -> None:
+    with _watch_lock:
+        _pending_notes.append(note)
+        del _pending_notes[:-5]
+
+
+def _take_notes() -> list[str]:
+    with _watch_lock:
+        out = list(_pending_notes)
+        _pending_notes.clear()
+    return out
+
+
+def _respond(before: dict, after: dict, *, when: str, deleted: frozenset, repair_scopes: tuple,
+             alarm_scopes: tuple = D.SCOPES) -> Optional[str]:
+    changes = D.tamper_changes(before, after, ark_busy=_full_running.is_set(), deleted_by_ark=deleted,
+                               scopes=alarm_scopes)
+    if not changes:
+        return None
+    flat = [c for scope in D.SCOPES for c in changes.get(scope, [])]
+    restored = D.repair(before, after, scopes=tuple(s for s in repair_scopes if s in changes))
+    if "Ark enabled again" in restored:
+        _expect_config["view"] = before.get("config")
+    fresh = D.needs_fresh_snapshot(changes)
+    logger.warning("Hermes Ark tamper alarm (%s): %s (repaired: %s)", when, "; ".join(flat), restored)
+    record_event("tamper", "; ".join(flat) + (f" — repaired {', '.join(restored)}" if restored else ""))
+    if fresh:
+        _resnapshot()
+    return D.format_tamper(flat, restored, when=when, resnapshot=fresh)
+
+
+_expect_config: dict[str, Any] = {"view": None}
+
+
+def _settle(fp: dict) -> dict:
+    """While Ark re-enables itself in the background, remember the state it is restoring, not the half-way
+    state, so the next check neither re-triggers nor mistakes the restore for a new change."""
+    if _expect_config["view"] is not None:
+        if D._reenabling.is_set():
+            fp = {**fp, "config": _expect_config["view"]}
+        else:
+            _expect_config["view"] = None
+    return fp
+
+
+def watchdog_tick() -> Optional[str]:
+    """Compare Ark with how the agent last left it. Damage to the backups is always repaired; changes to
+    settings, enabled state or secrets are put back only while the agent is active (otherwise they are
+    the user's own and are only logged)."""
+    last = D.last_seen()
+    now = _settle(D.fingerprint())
+    if last is None:
+        D.remember(now)
+        return None
+    if isinstance(last.get("settings"), dict) and last["settings"].get("allow_agent_admin"):
+        D.remember(now)
+        return None
+    deleted = _deleted_by_ark(last.get("at", 0), between_calls=True)
+    if last.get("_repo_only"):                            # first look after a restart
+        note = _respond(last, now, when="while Hermes was not running", deleted=deleted,
+                        repair_scopes=("repo",), alarm_scopes=("repo",))
+    elif agent_active():
+        known = tuple(s for s in D.SCOPES if s == "repo" or s in last)   # after a reload: no env/code on record
+        note = _respond(last, now, when="while the agent was active (a background job or delayed script?)",
+                        deleted=deleted, repair_scopes=("config", "env", "repo"), alarm_scopes=known)
+        if note:
+            cutoff = time.time() - AGENT_WINDOW_S
+            with _watch_lock:
+                suspects = [k for t, k in _bg_calls if t >= cutoff]
+            for k in suspects:
+                _quarantine_call(k)
+    else:
+        note = _respond(last, now, when="while the agent was idle", deleted=deleted, repair_scopes=("repo",),
+                        alarm_scopes=("repo",))
+        other = D.tamper_changes(last, now, ark_busy=True, scopes=("config", "env", "code"))
+        if other:
+            record_event("info", "changed while the agent was idle (kept as your own change): "
+                         + "; ".join(c for v in other.values() for c in v))
+    D.remember(_settle(D.fingerprint() if note else now))
+    if note:
+        _queue_note(note)
+    return note
+
+
+_watchdog_started = threading.Event()
+WATCHDOG_INTERVAL_S = 10.0
+
+
+def _ensure_watchdog() -> None:
+    """Started by the first agent tool call, so only processes that run the agent are watched."""
+    if _watchdog_started.is_set():
+        return
+    with _start_lock:
+        if _watchdog_started.is_set():
+            return
+        _watchdog_started.set()
+        # One watchdog per process. It deliberately outlives an unload of the plugin: when an attacker
+        # disables Ark, the surviving watchdog is what puts it back.
+        if any(t.name == "hermes-ark-watchdog" and t.is_alive() for t in threading.enumerate()):
+            return
+
+    def loop():
+        while True:
+            time.sleep(WATCHDOG_INTERVAL_S)
+            try:
+                watchdog_tick()
+            except Exception as exc:
+                logger.debug("Hermes Ark watchdog: %s", exc)
+
+    threading.Thread(target=loop, name="hermes-ark-watchdog", daemon=True).start()
+
+
+def _tamper_checked(call, tool_name: str = ""):
+    """Wrap a tool call so a change to Ark itself — during the call or since the previous one — is
+    reported and repaired, however it was disguised."""
+    def wrapped(a):
+        key = _call_key(tool_name, a)
+        notes = []
+        try:
+            watchdog_tick()                               # what happened since the agent's last action
+            notes.extend(_take_notes())
+            before = D.fingerprint()
         except Exception as exc:
             logger.debug("Hermes Ark tamper check failed: %s", exc)
+            return call(a)
+        result = call(a)
+        _note_agent_activity(result, key)
+        try:
+            after = D.fingerprint()
+            note = _respond(before, after, when="during this tool call",
+                            deleted=_deleted_by_ark(before.get("at", 0), between_calls=False),
+                            repair_scopes=D.SCOPES)
+            if note:
+                notes.append(note)
+                _quarantine_call(key)
+                after = D.fingerprint()
+            D.remember(_settle(after))
+        except Exception as exc:
+            logger.debug("Hermes Ark tamper check failed: %s", exc)
+        if notes:
+            return _attach_note(result, "\n".join(notes), key="ark_tamper_alarm")
         return result
     return wrapped
 
@@ -340,11 +666,14 @@ def _conversation_key(ctx: dict) -> str:
 
 def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **ctx: Any) -> Any:
     """Middleware: Ark's self-defense first, then checkpoint before / guard after brain writes."""
+    _note_agent_activity()
     try:
         blocked = D.check(tool_name, args)
     except Exception as exc:
         logger.debug("Hermes Ark self-defense check failed: %s", exc)
         blocked = None
+    if not blocked and quarantined(tool_name, args) and not _agent_admin():
+        blocked = D.QUARANTINE_MESSAGE
     if blocked:
         shown = json.dumps(args, ensure_ascii=False, default=str)[:200] if args is not None else ""
         logger.warning("Hermes Ark blocked an agent %s call: %s", tool_name, shown)
@@ -353,8 +682,9 @@ def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **ctx:
         except Exception:
             pass
         return D.blocked_result(blocked)
-    if tool_name in D.TAMPER_TOOLS and not _agent_admin():
-        next_call = _tamper_checked(next_call)
+    if D.watched(tool_name) and not _agent_admin():
+        _ensure_watchdog()
+        next_call = _tamper_checked(next_call, tool_name)
     try:
         watched = _touches_brain(tool_name, args)
     except Exception:
