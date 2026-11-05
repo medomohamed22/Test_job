@@ -163,7 +163,7 @@ def restore_preview(body: RestoreBody) -> dict[str, Any]:
     try:
         sid, note = cli._restore_target(repo, body.snapshot)
         selector = restore.Selector.parse(body.what)
-        plan = restore.plan_restore(repo, sid, S.hermes_home(), selector, extra_excludes=st.exclude)
+        plan = restore.plan_restore(repo, sid, S.hermes_home(), selector, extra_excludes=S.excludes(st))
     except Exception as exc:
         raise _fail(exc)
     home = S.hermes_home()

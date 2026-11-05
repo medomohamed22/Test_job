@@ -44,6 +44,9 @@ def derive_key(passphrase: str, salt: bytes, kdf: dict) -> bytes:
     if kdf.get("name") != "scrypt":
         raise ArkCryptoError(f"unsupported kdf {kdf.get('name')!r}")
     n, r, p = int(kdf["n"]), int(kdf["r"]), int(kdf["p"])
+    # Bounds: a tampered ark.json must not be able to make unlocking take minutes or gigabytes.
+    if not (2**10 <= n <= 2**20 and n & (n - 1) == 0 and 1 <= r <= 16 and 1 <= p <= 4):
+        raise ArkCryptoError("repository key-derivation parameters are out of range (corrupted or tampered ark.json)")
     return hashlib.scrypt(passphrase.encode("utf-8"), salt=salt, n=n, r=r, p=p, maxmem=256 * 1024 * 1024, dklen=32)
 
 

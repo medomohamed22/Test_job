@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import getpass
-import os
 import sys
 from typing import Optional
 
@@ -72,7 +71,7 @@ def op_snapshot(label: str = "", trigger: str = "manual", skip_if_unchanged: boo
     include = st.include_secrets and repo.encrypted
     with repo_lock(S.lock_path(st)):
         res = create_snapshot(repo, S.hermes_home(), label=label, trigger=trigger, include_secrets=include,
-                              extra_excludes=st.exclude, skip_if_unchanged=skip_if_unchanged)
+                              extra_excludes=S.excludes(st), skip_if_unchanged=skip_if_unchanged)
     if res.unchanged:
         return f"✓ Nothing changed since {res.snapshot_id}; no new snapshot needed."
     msg = (f"✓ Snapshot {res.snapshot_id}: {res.files} files, {human_size(res.bytes_total)} "
@@ -182,7 +181,7 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
     sid, note = _restore_target(repo, ref)
     selector = Selector.parse(what, profile)
     home = S.hermes_home()
-    plan = plan_restore(repo, sid, home, selector, extra_excludes=st.exclude)
+    plan = plan_restore(repo, sid, home, selector, extra_excludes=S.excludes(st))
     if plan.empty:
         return f"✓ {selector.describe().capitalize()} already matches snapshot {sid} ({plan.unchanged} file(s)). Nothing to do."
     if plan.touches_sessions_db and (from_chat or _gateway_running()):
@@ -207,7 +206,7 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
     include = st.include_secrets and repo.encrypted
     with repo_lock(S.lock_path(st)):
         safety = create_snapshot(repo, home, label=f"before restoring {selector.describe()} ({sid[:15]})",
-                                 trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
+                                 trigger="pre-restore", include_secrets=include, extra_excludes=S.excludes(st))
         res = apply_plan(repo, plan, home)
     kept = _keep_offsite_settings(st)
     lines.append(f"\n✓ Restored {res.written} file(s), removed {res.deleted}. "
@@ -456,7 +455,12 @@ def op_init(no_encryption: bool) -> str:
     be = S.backend(st)
     if Repository.exists(be):
         return f"A repository already exists at {st.repository}."
+    if no_encryption and S.passphrase():
+        return ("✗ ARK_PASSPHRASE is set, so Ark expects an encrypted repository. Remove it from your .env to create "
+                "an unencrypted one (not recommended), or drop --no-encryption.")
     pw = None if no_encryption else _ask_new_passphrase()
+    if pw and len(pw) < 8:
+        return "✗ ARK_PASSPHRASE is too short: use at least 8 characters (a long phrase is best)."
     if not no_encryption and not pw:
         return "✗ Repository not created."
     repo = Repository.init(be, pw)

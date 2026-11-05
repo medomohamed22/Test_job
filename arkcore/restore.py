@@ -98,15 +98,12 @@ def _same_as_disk(repo: Repository, entry: dict, path: Path) -> bool:
     try:
         if not path.is_file() or path.is_symlink() or path.stat().st_size != entry["s"]:
             return False
-        if path.name.endswith(".db"):
-            return False  # live databases always differ byte-wise; restore explicitly
-        data = path.read_bytes()
     except OSError:
         return False
-    if len(entry["b"]) == 1:
-        return repo.blob_id(data) == entry["b"][0]
-    from .snapshot import CHUNK
-    return [repo.blob_id(data[i:i + CHUNK]) for i in range(0, len(data), CHUNK)] == entry["b"]
+    if path.name.endswith(".db"):
+        return False  # live databases always differ byte-wise; restore explicitly
+    from .snapshot import file_matches_entry
+    return file_matches_entry(repo, path, entry)
 
 
 def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector: Selector,
@@ -125,7 +122,10 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
     # Files in scope today that the snapshot did not have. Secrets are only removed when the
     # snapshot itself captured secrets (otherwise their absence means "not backed up", not "deleted").
     scope = manifest.get("scope")
+    unreadable = set(manifest.get("unreadable") or [])
     for cur in current:
+        if cur.rel in unreadable:
+            continue  # existed at snapshot time but could not be read: never "added since", never deleted
         if scope is not None and classify(cur.rel, roots)[1] not in scope:
             continue  # a scoped snapshot says nothing about kinds it did not capture
         if cur.rel not in wanted and selector.matches(cur.rel, roots):
@@ -133,6 +133,15 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
     if not wanted and not plan.delete:
         raise RestoreError(f"snapshot {snapshot_id} has nothing matching {selector.describe()}")
     return plan
+
+
+def _inside(path: Path, root: Path) -> bool:
+    """True when *path* (resolved) is *root* or below it. Path-aware: ~/.hermes-evil is NOT inside ~/.hermes."""
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def _safe_target(root: Path, rel: str) -> Path:
@@ -144,36 +153,14 @@ def _safe_target(root: Path, rel: str) -> Path:
         raise RestoreError(f"refusing unsafe path in snapshot: {rel!r}")
     target = root.joinpath(*p.parts)
     # Never follow a symlinked parent out of the home.
-    real_root = root.resolve()
     parent = target.parent
     while parent != root and not parent.exists():
         parent = parent.parent
-    if not str(parent.resolve()).startswith(str(real_root)):
+    if not _inside(parent, root):
         raise RestoreError(f"refusing to write outside the Hermes home: {rel!r}")
+    if target.is_dir() and not target.is_symlink():
+        raise RestoreError(f"cannot restore {rel!r}: a folder now exists at that path")
     return target
-
-
-def _atomic_write(target: Path, data: bytes, mode: int, mtime_ns: Optional[int]) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.is_symlink():
-        target.unlink()
-    fd, tmp = tempfile.mkstemp(prefix=".ark-", dir=target.parent)
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        # Permission bits only: never restore setuid/setgid/sticky, whatever a manifest says.
-        os.chmod(tmp, (mode & 0o777) or 0o600)
-        if mtime_ns:
-            os.utime(tmp, ns=(mtime_ns, mtime_ns))
-        os.replace(tmp, target)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 @dataclass
@@ -183,30 +170,85 @@ class RestoreResult:
     bytes: int
 
 
-def apply_plan(repo: Repository, plan: RestorePlan, root: Path | str) -> RestoreResult:
-    """Apply *plan*. All blobs are fetched and verified BEFORE the first write, so a damaged or
-    unreachable backup aborts cleanly instead of leaving a half-restored home."""
-    root = Path(root)
-    staged = []
-    for entry in plan.write:
-        data = b"".join(repo.get_blob(b) for b in entry["b"])
-        if len(data) != entry["s"]:
+def _stage(repo: Repository, entry: dict, target: Path, created_dirs: list) -> tuple[str, int]:
+    """Write *entry* to a private temp file next to *target*, verifying every blob. Returns (temp, size)."""
+    missing = []
+    d = target.parent
+    while not d.exists():
+        missing.append(d)
+        d = d.parent
+    target.parent.mkdir(parents=True, exist_ok=True)
+    created_dirs.extend(reversed(missing))
+    fd, tmp = tempfile.mkstemp(prefix=".ark-", dir=target.parent)
+    size = 0
+    try:
+        with os.fdopen(fd, "wb") as f:
+            for blob_id in entry["b"]:
+                chunk = repo.get_blob(blob_id)          # raises on a damaged/missing blob
+                f.write(chunk)
+                size += len(chunk)
+            f.flush()
+            os.fsync(f.fileno())
+        if size != entry["s"]:
             raise RestoreError(f"{entry['p']}: size mismatch in backup")
-        staged.append((entry, _safe_target(root, entry["p"]), data))
+        # Permission bits only: never restore setuid/setgid/sticky, whatever a manifest says.
+        os.chmod(tmp, (int(entry.get("m", 0o600)) & 0o777) or 0o600)
+        if entry.get("t"):
+            os.utime(tmp, ns=(int(entry["t"]), int(entry["t"])))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return tmp, size
+
+
+def apply_plan(repo: Repository, plan: RestorePlan, root: Path | str) -> RestoreResult:
+    """Apply *plan* in two phases so a failure never leaves a half-restored home:
+
+    1. every file is streamed from the backup into a temp file beside its target, each blob decrypted
+       and integrity-checked (memory stays bounded by one blob, whatever the file size);
+    2. only when all of them are ready are they renamed into place, then removals happen.
+    Any error in phase 1 deletes the temp files and leaves the home exactly as it was.
+    """
+    root = Path(root)
+    targets = [(entry, _safe_target(root, entry["p"])) for entry in plan.write]   # pre-flight, no writes
     deletes = [_safe_target(root, rel) for rel in plan.delete]
+    staged: list[tuple[dict, Path, str, int]] = []
+    created_dirs: list[Path] = []
+    try:
+        for entry, target in targets:
+            tmp, size = _stage(repo, entry, target, created_dirs)
+            staged.append((entry, target, tmp, size))
+    except BaseException:
+        for _, _, tmp, _ in staged:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        for d in reversed(created_dirs):
+            try:
+                d.rmdir()
+            except OSError:
+                pass
+        raise
 
     total = 0
-    for entry, target, data in staged:
+    for _entry, target, tmp, size in staged:
         if target.name.endswith(".db"):
             for suffix in ("-wal", "-shm", "-journal"):   # stale sidecars would corrupt the restored DB
                 side = target.with_name(target.name + suffix)
                 if side.exists():
                     side.unlink()
-        _atomic_write(target, data, entry.get("m", 0o600), entry.get("t"))
-        total += len(data)
+        if target.is_symlink():
+            target.unlink()
+        os.replace(tmp, target)
+        total += size
     for target in deletes:
         try:
-            target.unlink()
+            if not target.is_dir() or target.is_symlink():
+                target.unlink()
         except FileNotFoundError:
             pass
         _prune_empty_dirs(target.parent, root)
@@ -216,7 +258,7 @@ def apply_plan(repo: Repository, plan: RestorePlan, root: Path | str) -> Restore
 def _prune_empty_dirs(d: Path, root: Path) -> None:
     root = root.resolve()
     d = d.resolve()
-    while d != root and str(d).startswith(str(root)):
+    while d != root and _inside(d, root):
         try:
             d.rmdir()
         except OSError:

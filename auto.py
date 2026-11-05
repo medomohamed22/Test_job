@@ -15,15 +15,18 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from . import settings as S
 from .arkcore.guard import compare, format_alarms, measure
-from .arkcore.lock import LockBusy, repo_lock
+from .arkcore.lock import LockBusy, _lock as _flock_raw, _unlock as _funlock_raw, repo_lock
 from .arkcore.repo import Repository
 from .arkcore.retention import Policy, prune
 from .arkcore.snapshot import BRAIN, create_snapshot
@@ -41,10 +44,30 @@ PRUNE_EVERY_S = 24 * 3600
 _EVENTS_MAX = 200
 _state_lock = threading.Lock()
 _full_running = threading.Event()
+_start_lock = threading.Lock()
 _warned_unready = False
 
 
 # ---- small persistent state (data dir) ---------------------------------------------------------
+
+def _flock(fh) -> None:
+    deadline = time.monotonic() + 10
+    while True:
+        try:
+            _flock_raw(fh)
+            return
+        except OSError:
+            if time.monotonic() > deadline:
+                raise LockBusy("autopilot state is locked")
+            time.sleep(0.05)
+
+
+def _funlock(fh) -> None:
+    try:
+        _funlock_raw(fh)
+    except OSError:
+        pass
+
 
 def _state_file() -> Path:
     return S.data_dir() / "autopilot.json"
@@ -57,25 +80,63 @@ def load_state() -> dict:
         return {}
 
 
-def _update_state(**changes: Any) -> None:
+@contextmanager
+def _state_guard():
+    """Thread lock + inter-process file lock: the gateway and a terminal `hermes ark` may both write."""
     with _state_lock:
+        lock = S.data_dir() / "autopilot.lock"
+        with open(lock, "a+b") as fh:
+            _flock(fh)
+            try:
+                yield
+            finally:
+                _funlock(fh)
+
+
+def _write_state(st: dict) -> None:
+    fd, tmp = tempfile.mkstemp(prefix=".autopilot-", dir=S.data_dir())
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(st, f, indent=1)
+        os.replace(tmp, _state_file())
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _update_state(**changes: Any) -> None:
+    with _state_guard():
         st = load_state()
         st.update(changes)
-        tmp = _state_file().with_suffix(".tmp")
-        tmp.write_text(json.dumps(st, indent=1))
-        tmp.replace(_state_file())
+        _write_state(st)
 
 
 def record_event(kind: str, message: str, snapshot_id: Optional[str] = None) -> None:
-    with _state_lock:
+    with _state_guard():
         st = load_state()
         events = st.get("events", [])
         events.append({"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "kind": kind,
-                       "message": message, "snapshot": snapshot_id})
+                       "message": message[:500], "snapshot": snapshot_id})
         st["events"] = events[-_EVENTS_MAX:]
-        tmp = _state_file().with_suffix(".tmp")
-        tmp.write_text(json.dumps(st, indent=1))
-        tmp.replace(_state_file())
+        _write_state(st)
+
+
+def protected_snapshots(days: int = 30) -> set[str]:
+    """Snapshots named by a health-guard alert in the last *days*: their undo command must keep
+    working, so retention never prunes them."""
+    cutoff = time.time() - days * 86400
+    out = set()
+    for e in load_state().get("events", []):
+        try:
+            when = datetime.fromisoformat(e["at"]).timestamp()
+        except (KeyError, ValueError):
+            continue
+        if e.get("snapshot") and when >= cutoff:
+            out.add(e["snapshot"])
+    return out
 
 
 def record_push(objects: int, nbytes: int, where: str) -> None:
@@ -126,9 +187,10 @@ def brain_checkpoint(reason: str) -> Optional[str]:
     repo = _ready_repo(st)
     if repo is None:
         return None
-    with repo_lock(S.lock_path(st), timeout=10):
+    # A full snapshot may hold the lock for a while; the agent's memory write must not wait on it.
+    with repo_lock(S.lock_path(st), timeout=2):
         res = create_snapshot(repo, S.hermes_home(), label=reason, trigger="auto:pre-write", scope=BRAIN,
-                              include_secrets=False, extra_excludes=st.exclude, skip_if_unchanged=True)
+                              include_secrets=False, extra_excludes=S.excludes(st), skip_if_unchanged=True)
     return res.snapshot_id
 
 
@@ -139,12 +201,12 @@ def full_snapshot(trigger: str = "auto", label: str = "", force_prune: bool = Fa
         return None
     with repo_lock(S.lock_path(st), timeout=60):
         res = create_snapshot(repo, S.hermes_home(), label=label, trigger=trigger,
-                              include_secrets=st.include_secrets and repo.encrypted, extra_excludes=st.exclude,
+                              include_secrets=st.include_secrets and repo.encrypted, extra_excludes=S.excludes(st),
                               skip_if_unchanged=True)
         now = time.time()
         _update_state(last_full=now, last_full_id=res.snapshot_id)
         if force_prune or now - load_state().get("last_prune", 0) >= PRUNE_EVERY_S:
-            pr = prune(repo, Policy.from_settings(S.get))
+            pr = prune(repo, Policy.from_settings(S.get), protect=protected_snapshots())
             _update_state(last_prune=now)
             if pr.removed_snapshots:
                 logger.info("Hermes Ark: pruned %d snapshot(s), %d blob(s)", len(pr.removed_snapshots), pr.removed_blobs)
@@ -157,13 +219,16 @@ def on_session_end(**_: Any) -> None:
     """Full snapshot in the background when the interval has elapsed. Never blocks the agent."""
     try:
         st = S.load()
-        if not st.auto or _full_running.is_set():
+        if not st.auto:
             return
         if time.time() - load_state().get("last_full", 0) < st.interval_minutes * 60:
             return
     except Exception:
         return
-    _full_running.set()
+    with _start_lock:                       # two sessions ending together start one snapshot, not two
+        if _full_running.is_set():
+            return
+        _full_running.set()
 
     def run():
         try:
@@ -324,7 +389,9 @@ def checkpoint_available() -> bool:
 
 
 def checkpoint_tool(args: dict, **_: Any) -> str:
-    label = str((args or {}).get("label", "")).strip()[:120] or "agent checkpoint"
+    import re
+    # The label is shown in chats and the Desktop timeline: one plain line, no control characters.
+    label = re.sub(r"[\x00-\x1f\x7f]+", " ", str((args or {}).get("label", ""))).strip()[:120] or "agent checkpoint"
     try:
         sid = full_snapshot(trigger="agent", label=label)
         if sid is None:

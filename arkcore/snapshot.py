@@ -10,7 +10,8 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from contextlib import contextmanager
+from typing import BinaryIO, Callable, Iterable, Iterator, Optional
 
 from .repo import Repository, new_snapshot_id
 from .scanner import FileEntry, classify, dirs_for_kinds, scan, skill_roots
@@ -31,38 +32,57 @@ class SnapshotResult:
     unchanged: bool = False
 
 
-def _read_consistent(entry: FileEntry) -> bytes:
-    """Read a file; SQLite databases are copied through sqlite3's online backup API so a live,
-    WAL-mode database yields a consistent image (never a torn read)."""
-    if entry.is_sqlite:
-        with entry.path.open("rb") as f:
-            is_sqlite = f.read(16) == b"SQLite format 3\x00"
-        if is_sqlite:
-            fd, tmp = tempfile.mkstemp(suffix=".db")
-            os.close(fd)
-            try:
-                src = sqlite3.connect(f"file:{entry.path}?mode=ro", uri=True, timeout=10)
-                dst = sqlite3.connect(tmp)
-                try:
-                    src.backup(dst)
-                finally:
-                    dst.close()
-                    src.close()
-                return Path(tmp).read_bytes()
-            finally:
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
-    return entry.path.read_bytes()
+def _is_sqlite(path: Path) -> bool:
+    with path.open("rb") as f:
+        return f.read(16) == b"SQLite format 3\x00"
 
 
-def _chunks(data: bytes) -> Iterable[bytes]:
-    if len(data) <= SMALL:
-        yield data
+def stream_chunks(fh: BinaryIO) -> Iterator[bytes]:
+    """Split a stream the way blobs are stored: one blob up to SMALL bytes, else CHUNK pieces.
+    Never holds more than SMALL+1 bytes, whatever the file size (a multi-GB video included)."""
+    head = fh.read(SMALL + 1)
+    if len(head) <= SMALL:
+        yield head
         return
-    for i in range(0, len(data), CHUNK):
-        yield data[i:i + CHUNK]
+    buf = head
+    while True:
+        while len(buf) >= CHUNK:
+            yield buf[:CHUNK]
+            buf = buf[CHUNK:]
+        more = fh.read(CHUNK)
+        if not more:
+            break
+        buf += more
+    if buf:
+        yield buf
+
+
+@contextmanager
+def open_consistent(entry: FileEntry):
+    """Open a file for reading. SQLite databases are first copied through sqlite3's online backup
+    API (into a private 0600 temp file) so a live WAL-mode database yields a consistent image."""
+    if entry.is_sqlite and _is_sqlite(entry.path):
+        fd, tmp = tempfile.mkstemp(suffix=".db", prefix="ark-")
+        os.close(fd)
+        try:
+            # as_uri() percent-encodes the path, so "?" or "#" in a folder name cannot change the URI.
+            src = sqlite3.connect(entry.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
+            dst = sqlite3.connect(tmp)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+            with open(tmp, "rb") as fh:
+                yield fh
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    else:
+        with entry.path.open("rb") as fh:
+            yield fh
 
 
 def create_snapshot(
@@ -88,7 +108,7 @@ def create_snapshot(
     started = time.monotonic()
     root = Path(root)
     scope_set = frozenset(scope) if scope is not None else None
-    entries, skipped = [], []
+    entries, skipped, skip_reasons = [], [], []
     total = new_bytes = new_blobs = 0
     top = dirs_for_kinds(scope_set) if scope_set is not None else None
     found = list(scan(root, include_secrets=include_secrets, extra_excludes=extra_excludes, top_dirs=top))
@@ -96,21 +116,23 @@ def create_snapshot(
     for entry in found:
         if scope_set is not None and classify(entry.rel, roots)[1] not in scope_set:
             continue
+        ids, size = [], 0
         try:
-            data = _read_consistent(entry)
+            with open_consistent(entry) as fh:
+                for chunk in stream_chunks(fh):
+                    blob_id, fresh = repo.put_blob(chunk)
+                    ids.append(blob_id)
+                    size += len(chunk)
+                    if fresh:
+                        new_blobs += 1
+                        new_bytes += len(chunk)
         except (OSError, sqlite3.Error) as exc:
-            skipped.append(f"{entry.rel}: {exc.__class__.__name__}")
+            skipped.append(entry.rel)
+            skip_reasons.append(f"{entry.rel}: {exc.__class__.__name__}")
             continue
-        ids = []
-        for chunk in _chunks(data):
-            blob_id, fresh = repo.put_blob(chunk)
-            ids.append(blob_id)
-            if fresh:
-                new_blobs += 1
-                new_bytes += len(chunk)
-        total += len(data)
+        total += size
         profile, kind, item = classify(entry.rel, roots)
-        entries.append({"p": entry.rel, "s": len(data), "m": entry.mode, "t": entry.mtime_ns, "b": ids,
+        entries.append({"p": entry.rel, "s": size, "m": entry.mode, "t": entry.mtime_ns, "b": ids,
                         "k": kind, "i": item, "pr": profile, **({"x": 1} if entry.secret else {})})
         if progress:
             progress(entry.rel)
@@ -120,7 +142,7 @@ def create_snapshot(
         if prev is not None:
             prev_files = [f for f in prev["files"] if scope_set is None or f.get("k") in scope_set]
             if _content_key(prev_files) == _content_key(entries):
-                return SnapshotResult(prev["id"], len(entries), total, 0, 0, time.monotonic() - started, skipped, unchanged=True)
+                return SnapshotResult(prev["id"], len(entries), total, 0, 0, time.monotonic() - started, skip_reasons, unchanged=True)
 
     sid = new_snapshot_id()
     manifest = {
@@ -133,10 +155,12 @@ def create_snapshot(
         "secrets": include_secrets,
         "scope": sorted(scope_set) if scope_set is not None else None,
         "files": entries,
+        # Files that existed but could not be read: a restore must never treat them as "added later".
+        "unreadable": skipped,
         "stats": {"files": len(entries), "bytes": total, "new_bytes": new_bytes, "new_blobs": new_blobs},
     }
     repo.save_manifest(manifest)
-    return SnapshotResult(sid, len(entries), total, new_bytes, new_blobs, time.monotonic() - started, skipped)
+    return SnapshotResult(sid, len(entries), total, new_bytes, new_blobs, time.monotonic() - started, skip_reasons)
 
 
 BRAIN = ("memory", "soul", "skill", "config", "cron")
@@ -216,6 +240,16 @@ def human_size(n: float) -> str:
             return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024
     return f"{n:.1f} GB"
+
+
+def file_matches_entry(repo: Repository, path: Path, entry: dict) -> bool:
+    """Does the file on disk hold exactly the snapshot entry's content? Streams; never loads it whole."""
+    try:
+        with path.open("rb") as fh:
+            ids = [repo.blob_id(c) for c in stream_chunks(fh)]
+    except OSError:
+        return False
+    return ids == entry["b"]
 
 
 def read_file_from_snapshot(repo: Repository, entry: dict) -> bytes:

@@ -83,6 +83,30 @@ class S3Config:
         return cls(endpoint=endpoint.rstrip("/"), bucket=p.netloc, prefix=p.path.strip("/"), **kw)
 
 
+# Largest response Ark accepts: an object (<= MAX_OBJECT plus encryption overhead) or one listing page.
+MAX_RESPONSE = (256 << 20) + 4096
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """S3 never needs redirects; following one would carry the signed Authorization header to
+    whatever host a malicious or compromised endpoint names."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise BackendError(f"S3 endpoint tried to redirect to {newurl!r}; refusing")
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect())
+
+
+def _parse_xml(data: bytes) -> ET.Element:
+    """Parse an S3 XML response. A DTD has no business in S3 XML: refuse any, so entity tricks
+    (billion laughs, external entities) never reach the parser."""
+    head = data[:4096].upper()
+    if b"<!DOCTYPE" in head or b"<!ENTITY" in data.upper():
+        raise BackendError("S3 response contains a DTD; refusing to parse it")
+    return ET.fromstring(data)
+
+
 class S3Backend:
     def __init__(self, cfg: S3Config):
         if not cfg.access_key or not cfg.secret_key:
@@ -119,10 +143,13 @@ class S3Backend:
         headers.pop("host", None)
         req = urllib.request.Request(url, data=body if method == "PUT" else None, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=self.cfg.timeout) as resp:
-                return resp.status, resp.read()
+            with _OPENER.open(req, timeout=self.cfg.timeout) as resp:
+                data = resp.read(MAX_RESPONSE + 1)
+                if len(data) > MAX_RESPONSE:
+                    raise BackendError(f"S3 {method} {key or ''}: response larger than any Ark object; refusing")
+                return resp.status, data
         except urllib.error.HTTPError as exc:
-            data = exc.read() or b""
+            data = exc.read(65536) or b""
             if exc.code in ok:
                 return exc.code, data
             raise BackendError(f"S3 {method} {key or ''} failed: HTTP {exc.code} {_s3_error(data)}") from exc
@@ -156,7 +183,7 @@ class S3Backend:
             if token:
                 q["continuation-token"] = token
             _, data = self._request("GET", None, query=q)
-            root = ET.fromstring(data)
+            root = _parse_xml(data)
             for c in root.iter(f"{_NS}Contents"):
                 k = c.findtext(f"{_NS}Key") or ""
                 yield k[strip:]
@@ -169,7 +196,7 @@ class S3Backend:
 
 def _s3_error(data: bytes) -> str:
     try:
-        root = ET.fromstring(data)
+        root = _parse_xml(data)
         return f"{root.findtext('Code') or ''}: {root.findtext('Message') or ''}".strip(": ")
-    except ET.ParseError:
+    except (ET.ParseError, BackendError):
         return data[:200].decode("utf-8", "replace")

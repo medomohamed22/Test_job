@@ -65,7 +65,7 @@ class Repository:
         return cls(backend, config, keys)
 
     @classmethod
-    def open(cls, backend: Backend, passphrase: Optional[str]) -> "Repository":
+    def open(cls, backend: Backend, passphrase: Optional[str], allow_unencrypted: bool = False) -> "Repository":
         try:
             config = json.loads(backend.read(CONFIG_KEY))
         except BackendError as exc:
@@ -75,6 +75,12 @@ class Repository:
         if config.get("format") != FORMAT:
             raise RepoError(f"unsupported repository format {config.get('format')!r}")
         keys = None
+        if not config.get("encryption") and passphrase and not allow_unencrypted:
+            # The user expects encryption (a passphrase is set) but this repository has none: either
+            # it was created with --no-encryption, or someone replaced ark.json to downgrade it and
+            # plant plaintext snapshots. Refuse instead of silently trusting unauthenticated data.
+            raise RepoError(f"the repository at {backend.label} is NOT encrypted although ARK_PASSPHRASE is set "
+                            "(possible tampering). Refusing to open it.")
         if config.get("encryption"):
             if not passphrase:
                 raise LockedError("this repository is encrypted: set ARK_PASSPHRASE")

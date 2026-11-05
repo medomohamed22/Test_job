@@ -79,7 +79,8 @@ class PruneResult:
     freed_bytes: int
 
 
-def prune(repo: Repository, policy: Policy, dry_run: bool = False, only: Optional[list[str]] = None) -> PruneResult:
+def prune(repo: Repository, policy: Policy, dry_run: bool = False, only: Optional[list[str]] = None,
+          protect: Iterable[str] = ()) -> PruneResult:
     """Apply *policy* (or delete exactly *only*), then delete blobs no remaining snapshot uses.
 
     Call under the repository lock: a blob written by a snapshot still in progress is not yet
@@ -89,8 +90,9 @@ def prune(repo: Repository, policy: Policy, dry_run: bool = False, only: Optiona
     if only is not None:
         drop = [repo.resolve(r) for r in only]
     else:
-        drop = decide(({"id": sid, "label": m.get("label", ""), "trigger": m.get("trigger", "")} for sid, m in manifests.items()),
-                      policy).drop
+        protected = set(protect)
+        drop = [sid for sid in decide(({"id": sid, "label": m.get("label", ""), "trigger": m.get("trigger", "")}
+                                       for sid, m in manifests.items()), policy).drop if sid not in protected]
     keep = {sid: m for sid, m in manifests.items() if sid not in drop}
     referenced = {b for m in keep.values() for f in m["files"] for b in f["b"]}
     garbage = [b for b in repo.iter_blob_ids() if b not in referenced]

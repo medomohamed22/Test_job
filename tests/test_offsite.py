@@ -172,3 +172,71 @@ def test_real_s3_roundtrip(hermes_home, local):
     for k in list(remote.list("")):
         remote.delete(k)
     assert list(remote.list("")) == []
+
+
+
+# ---- hostile S3 endpoints -------------------------------------------------------------------
+
+def _serve(handler_cls):
+    import threading
+    from http.server import HTTPServer
+    srv = HTTPServer(("127.0.0.1", 0), handler_cls)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def test_s3_redirects_are_refused_and_never_leak_the_signature():
+    import http.server
+    seen = []
+
+    class Target(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"stolen")
+
+    target = _serve(Target)
+
+    class Redirector(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{target.server_port}/grab")
+            self.end_headers()
+
+    red = _serve(Redirector)
+    be = S3Backend(S3Config.from_url("s3://b/p", endpoint=f"http://127.0.0.1:{red.server_port}", region="us-east-1",
+                                     access_key="AK", secret_key="SK"))
+    with pytest.raises(BackendError, match="redirect"):
+        be.read("ark.json")
+    assert seen == []
+    red.shutdown()
+    target.shutdown()
+
+
+def test_s3_xml_entity_bomb_is_refused():
+    import http.server
+    bomb = (b'<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;">]>'
+            b'<ListBucketResult><Contents><Key>&lol2;</Key></Contents></ListBucketResult>')
+
+    class Evil(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bomb)
+
+    srv = _serve(Evil)
+    be = S3Backend(S3Config.from_url("s3://b", endpoint=f"http://127.0.0.1:{srv.server_port}", region="us-east-1",
+                                     access_key="AK", secret_key="SK"))
+    with pytest.raises(BackendError, match="DTD"):
+        list(be.list("blobs"))
+    srv.shutdown()

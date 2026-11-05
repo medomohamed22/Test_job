@@ -150,7 +150,8 @@ def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterab
                     continue  # Hermes regenerates package desktop halves; hand-written desktop plugins are kept
                 if _is_secret(rel) and not include_secrets:
                     continue
-                if any((prefix + rel.as_posix()).startswith(e) for e in extra):
+                full_dir = prefix + rel.as_posix()
+                if any(full_dir == e or full_dir.startswith(e + "/") for e in extra):
                     continue
                 keep_dirs.append(name)
             dirnames[:] = keep_dirs

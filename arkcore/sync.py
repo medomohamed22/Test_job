@@ -71,13 +71,23 @@ def sync(src: Backend, dst: Backend, *, mirror: bool = False, workers: int = 8,
         res.snapshots_copied.append(k.rsplit("/", 1)[-1])
     res.copied = len(todo)
 
-    # The config is copied when missing or changed (passphrase rotation re-wraps the key).
+    # The config is copied when missing or changed (passphrase rotation re-wraps the key). Its
+    # encryption can never be switched off by a sync, so a tampered copy cannot downgrade the other.
     cfg = src.read(CONFIG_KEY)
     try:
-        same = dst.read(CONFIG_KEY) == cfg
+        current = dst.read(CONFIG_KEY)
     except BackendError:
-        same = False
-    if not same:
+        current = None
+    if current != cfg:
+        if current is not None:
+            try:
+                was_encrypted = bool(json.loads(current).get("encryption"))
+                now_encrypted = bool(json.loads(cfg).get("encryption"))
+            except ValueError as exc:
+                raise SyncError("repository config is damaged on one side") from exc
+            if was_encrypted and not now_encrypted:
+                raise SyncError(f"{src.label} claims the repository is unencrypted while {dst.label} is encrypted "
+                                "— refusing (possible tampering)")
         dst.write(CONFIG_KEY, cfg)
 
     if mirror:

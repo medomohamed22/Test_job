@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -66,18 +67,28 @@ def compare(before: BrainState, after: BrainState) -> list[Alarm]:
         hint = "memory" if "SOUL" not in rel else "soul"
         n_before, n_after = before.entries.get(rel, 0), after.entries.get(rel, 0)
         if rel not in after.memory and size >= 40:
-            alarms.append(Alarm("memory", f"{rel} was deleted", hint))
+            alarms.append(Alarm("memory", f"{safe_name(rel)} was deleted", hint))
         elif n_before >= MIN_ENTRIES and n_after <= n_before * (1 - SHRINK_RATIO):
-            alarms.append(Alarm("memory", f"{rel}: {n_before - n_after} of {n_before} memory entries removed "
+            alarms.append(Alarm("memory", f"{safe_name(rel)}: {n_before - n_after} of {n_before} memory entries removed "
                                           f"({size} → {now} bytes)", hint))
         elif size >= SHRINK_MIN_BYTES and lost >= SHRINK_MIN_BYTES and now <= size * (1 - SHRINK_RATIO):
             pct = round(100 * lost / size)
-            alarms.append(Alarm("memory", f"{rel} shrank {pct}% ({size} → {now} bytes)", hint))
+            alarms.append(Alarm("memory", f"{safe_name(rel)} shrank {pct}% ({size} → {now} bytes)", hint))
     removed = sorted(set(before.skills) - set(after.skills))
     if len(removed) >= 2 or (removed and len(before.skills) <= 3):
-        names = ", ".join(r.split("/", 1)[1].rsplit("/", 1)[-1] for r in removed[:6])
+        names = ", ".join(safe_name(r.split("/", 1)[1].rsplit("/", 1)[-1], 40) for r in removed[:6])
         alarms.append(Alarm("skills", f"{len(removed)} skill(s) removed at once: {names}", "skills"))
     return alarms
+
+
+_SAFE_NAME = re.compile(r"[^\w .@+/-]")
+
+
+def safe_name(name: str, limit: int = 60) -> str:
+    """Skill/file names end up in text the model reads. Keep them inert: no newlines, quotes, brackets
+    or markup a crafted folder name could use to inject instructions."""
+    cleaned = _SAFE_NAME.sub("?", name)[:limit]
+    return cleaned + ("…" if len(name) > limit else "")
 
 
 def format_alarms(alarms: list[Alarm], snapshot_id: Optional[str]) -> str:

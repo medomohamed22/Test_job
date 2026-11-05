@@ -158,3 +158,25 @@ def remote_backend(st: Optional[Settings] = None, url: str = "", endpoint: str =
     if target.resolve() == load().repository.resolve():
         raise BackendError("the remote folder is the same as the local repository")
     return LocalBackend(target)
+
+
+def excludes(st: Optional[Settings] = None) -> list[str]:
+    """User exclusions plus Ark's own storage when it lives inside the Hermes home (a repository or a
+    folder remote under ~/.hermes): never back it up into itself, and never let a restore delete it."""
+    st = st or load()
+    out = list(st.exclude)
+    try:
+        home = hermes_home().resolve()
+    except Exception:
+        return out
+    candidates = [st.repository]
+    if st.remote and "://" not in st.remote:
+        candidates.append(Path(st.remote).expanduser())
+    for c in candidates:
+        try:
+            rel = c.expanduser().resolve().relative_to(home)
+        except (ValueError, OSError, RuntimeError):
+            continue
+        if rel.parts:
+            out.append(rel.as_posix())
+    return out
