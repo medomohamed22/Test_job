@@ -55,6 +55,9 @@
 | Restore | **only you**: terminal, `/ark restore … yes` in an allowed chat, or Desktop after a confirm dialog. The agent has no restore tool. |
 | Push / verify / prune | you; push also runs automatically after background snapshots when a remote is set |
 
+The agent could still type `hermes ark restore … --yes` into its terminal tool like any other command; that goes
+through Hermes' normal terminal approvals, and every restore takes a safety snapshot first, so it can be undone.
+
 `/ark` follows the gateway's own access control: anyone your gateway lets talk to Hermes can use it, exactly like
 they can use the terminal tools. The Desktop routes sit behind the dashboard's authentication.
 
