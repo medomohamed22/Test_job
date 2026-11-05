@@ -44,6 +44,11 @@ Then restart the gateway so chats and Telegram load it — and again after every
     To undo, the user can run: /ark restore memory 20261105T111624556530Z-5531 yes
   ```
   Desktop shows the same alert on the Ark page and turns the status-bar shield into **⚠ Ark: check memory**.
+
+  ![The agent relays Ark's health guard in chat](docs/media/chat-guard.png)
+
+  It also covers direct edits of Hermes' own files through `terminal`, `write_file` and `patch`
+  (e.g. `: > ~/.hermes/memories/MEMORY.md`), and losses spread over several calls (skills deleted one by one).
 - **Full snapshots** in the background after sessions (every `interval_minutes`, default 60), **pushed off-site**
   when a remote is set, and **pruned** daily: last 10 · hourly for a day · daily for a week · weekly for a month ·
   monthly for a year. Snapshots you name yourself are kept.
@@ -104,6 +109,7 @@ a fresh machine can never wipe your off-site copy.
 | `hermes ark restore <what> [snap] [--yes]` | `/ark restore <what> [snap] [yes]` | preview, then restore |
 | `hermes ark push [--mirror]` · `pull` | `/ark push` | off-site copy |
 | `hermes ark verify [--remote] [--quick]` | `/ark verify [remote]` | prove backups restore |
+| `hermes ark repair` | `/ark repair` | re-fetch damaged data from the off-site copy |
 | `hermes ark prune [--dry-run]` · `forget <id>` | `/ark prune` | retention |
 
 Settings (Desktop *Settings → Plugins → Hermes Ark*, or `config.yaml` under `plugins.entries.hermes-ark.settings`):
@@ -141,7 +147,7 @@ Settings (Desktop *Settings → Plugins → Hermes Ark*, or `config.yaml` under 
 ## Development
 
 ```bash
-python -m pytest tests                       # 61 tests: engine, restore, autopilot, off-site, Desktop API
+python -m pytest tests                       # 63 tests: engine, restore, autopilot, off-site, Desktop API
 ARK_TEST_S3_ENDPOINT=… ARK_TEST_S3_BUCKET=… ARK_TEST_S3_KEY=… ARK_TEST_S3_SECRET=… python -m pytest tests  # + real S3
 hermes plugins validate . --install-deps
 ```
