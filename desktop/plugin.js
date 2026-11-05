@@ -260,7 +260,7 @@ function RestoreBox({ api, id, skills }) {
   return h('div', { style: S.restoreBox },
     h(SegmentedControl, { options: RESTORE_CHOICES, value: what, onChange: setWhat, sizing: 'content' }),
     skills.length ? h('div', { style: { ...S.sub, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } }, 'Or one skill:',
-      skills.slice(0, 12).map((s) => h(Button, { key: s, size: 'xs', variant: 'chip', onClick: () => openPreview(`skill:${s}`) }, s))) : null,
+      skills.slice(0, 12).map((s) => h(Button, { key: s, size: 'xs', variant: 'chip', title: s, onClick: () => openPreview(`skill:${s}`) }, s.split('/').pop()))) : null,
     h('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
       h(Button, { variant: 'outline', disabled: loading, onClick: () => openPreview() }, loading ? h(GlyphSpinner, {}) : h(Codicon, { name: 'discard' }), 'Preview restore…'),
       h('span', { style: S.sub }, 'Nothing changes until you confirm. A safety snapshot is taken first.')),

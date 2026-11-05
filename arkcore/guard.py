@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from .scanner import classify, scan
+from .scanner import classify, scan, skill_roots
 
 
 @dataclass
@@ -22,8 +22,10 @@ class BrainState:
 
 def measure(root: Path | str) -> BrainState:
     st = BrainState()
-    for e in scan(root):
-        profile, kind, item = classify(e.rel)
+    found = list(scan(root))
+    roots = skill_roots(e.rel for e in found)
+    for e in found:
+        profile, kind, item = classify(e.rel, roots)
         if kind in ("memory", "soul"):
             st.memory[e.rel] = e.size
             if kind == "memory" and e.size <= MAX_ENTRY_SCAN:
@@ -73,7 +75,7 @@ def compare(before: BrainState, after: BrainState) -> list[Alarm]:
             alarms.append(Alarm("memory", f"{rel} shrank {pct}% ({size} → {now} bytes)", hint))
     removed = sorted(set(before.skills) - set(after.skills))
     if len(removed) >= 2 or (removed and len(before.skills) <= 3):
-        names = ", ".join(r.split("/", 1)[1] for r in removed[:6])
+        names = ", ".join(r.split("/", 1)[1].rsplit("/", 1)[-1] for r in removed[:6])
         alarms.append(Alarm("skills", f"{len(removed)} skill(s) removed at once: {names}", "skills"))
     return alarms
 

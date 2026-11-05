@@ -184,3 +184,41 @@ def test_decompression_bomb_is_refused(tmp_path):
     (tmp_path / "r" / "blobs" / "ab" / ("ab" + "0" * 62)).write_bytes(bomb)
     with pytest.raises(repo_mod.RepoError):
         repo.get_blob("ab" + "0" * 62)
+
+
+def test_nested_skill_categories(hermes_home, repo):
+    """Hermes stores skills as skills/<category>/<skill>/SKILL.md."""
+    import shutil
+    for cat, name in (("productivity", "maps"), ("productivity", "airtable"), ("research", "arxiv")):
+        d = hermes_home / "skills" / cat / name
+        (d / "scripts").mkdir(parents=True)
+        (d / "SKILL.md").write_text(f"# {name}")
+        (d / "scripts" / "run.py").write_text("print(1)")
+    sid = create_snapshot(repo, hermes_home).snapshot_id
+    items = {f["i"] for f in repo.load_manifest(sid)["files"] if f["k"] == "skill"}
+    assert {"productivity/maps", "productivity/airtable", "research/arxiv", "weather"} <= items
+    shutil.rmtree(hermes_home / "skills" / "productivity" / "maps")
+    (hermes_home / "skills" / "productivity" / "airtable" / "SKILL.md").write_text("broken")
+    plan = plan_restore(repo, sid, hermes_home, Selector.parse("skill:maps"))         # by short name
+    assert sorted(e["p"] for e in plan.write) == ["skills/productivity/maps/SKILL.md", "skills/productivity/maps/scripts/run.py"]
+    assert not plan.delete
+    apply_plan(repo, plan, hermes_home)
+    assert (hermes_home / "skills" / "productivity" / "maps" / "scripts" / "run.py").exists()
+    assert (hermes_home / "skills" / "productivity" / "airtable" / "SKILL.md").read_text() == "broken"   # untouched
+    plan = plan_restore(repo, sid, hermes_home, Selector.parse("skill:productivity/airtable"))
+    assert [e["p"] for e in plan.write] == ["skills/productivity/airtable/SKILL.md"]
+
+
+def test_guard_sees_single_nested_skill_deletions(hermes_home):
+    import shutil
+    from arkcore.guard import compare, measure
+    for name in ("a", "b", "c", "d"):
+        d = hermes_home / "skills" / "productivity" / name
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(name)
+    before = measure(hermes_home)
+    assert {"default/productivity/a", "default/productivity/d"} <= set(before.skills)
+    shutil.rmtree(hermes_home / "skills" / "productivity" / "a")
+    shutil.rmtree(hermes_home / "skills" / "productivity" / "b")
+    alarms = compare(before, measure(hermes_home))
+    assert alarms and "2 skill(s) removed" in alarms[0].message and "a, b" in alarms[0].message

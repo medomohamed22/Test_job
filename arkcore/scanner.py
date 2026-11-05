@@ -168,16 +168,32 @@ def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterab
 
 # ---- Classification: what a path *is*, so users can restore "my memory" instead of file paths ----
 
-def classify(rel: str) -> tuple[str, str, str]:
+def skill_roots(rels: Iterable[str]) -> frozenset[str]:
+    """Folders that hold a ``SKILL.md`` under a ``skills/`` dir. Hermes nests skills in categories
+    (``skills/productivity/maps/SKILL.md``), so a skill is identified by that folder, not by the
+    first path segment."""
+    roots = set()
+    for rel in rels:
+        if rel.endswith("/SKILL.md"):
+            d = rel.rsplit("/", 1)[0]
+            parts = PurePosixPath(d).parts
+            if "skills" in parts[:3]:
+                roots.add(d)
+    return frozenset(roots)
+
+
+def classify(rel: str, roots: Optional[frozenset] = None) -> tuple[str, str, str]:
     """Return (profile, kind, item) for a snapshot path.
 
     kind is one of memory, soul, skill, config, cron, sessions, plugin, secrets, media, other.
-    item names the restorable unit (a skill's folder name, a plugin name...), or "" for the kind.
+    item names the restorable unit (a skill's path below skills/, e.g. "productivity/maps", a plugin
+    name...), or "" for the kind. Pass *roots* (from :func:`skill_roots`) to resolve nested skills.
     """
     parts = PurePosixPath(rel).parts
     profile = "default"
+    prefix = ""
     if len(parts) >= 3 and parts[0] == "profiles":
-        profile, parts = parts[1], parts[2:]
+        profile, parts, prefix = parts[1], parts[2:], f"profiles/{parts[1]}/"
     if not parts:
         return profile, "other", ""
     top, name = parts[0], parts[-1]
@@ -196,7 +212,18 @@ def classify(rel: str) -> tuple[str, str, str]:
     if top == "memories":
         return profile, "memory", parts[1] if len(parts) > 1 else ""
     if top == "skills":
-        return profile, "skill", parts[1]
+        item = parts[1]
+        if roots:
+            d = rel
+            base = prefix + "skills/"
+            while "/" in d:
+                d = d.rsplit("/", 1)[0]
+                if d in roots:
+                    item = d[len(base):]
+                    break
+                if len(d) <= len(base):
+                    break
+        return profile, "skill", item
     if top == "cron":
         return profile, "cron", ""
     if top == "sessions":

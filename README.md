@@ -27,7 +27,8 @@ hermes ark init        # creates the encrypted repository
 hermes ark snap first  # first snapshot; from now on Ark runs on its own
 ```
 
-In Hermes Desktop, enable **Hermes Ark** under *Capabilities → Plugins* to get the **Ark** page.
+Then restart the gateway so chats and Telegram load it — and again after every `hermes plugins update`:
+`hermes gateway restart`. In Hermes Desktop, enable **Hermes Ark** under *Capabilities → Plugins* to get the **Ark** page.
 
 ## What happens automatically
 

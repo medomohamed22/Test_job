@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Optional
 
 from .repo import Repository
-from .scanner import classify, scan
+from .scanner import classify, scan, skill_roots
 
 KINDS = ("memory", "soul", "skill", "config", "cron", "sessions", "plugin", "secrets", "media", "other")
 _ALIASES = {"memories": "memory", "skills": "skill", "plugins": "plugin", "session": "sessions",
@@ -54,16 +54,17 @@ class Selector:
             raise RestoreError(f"unknown item {kind!r}; use one of: all, {', '.join(KINDS)}, skill:<name>, file:<path>")
         return cls(kind=kind, item=item.strip(), profile=profile or None)
 
-    def matches(self, rel: str) -> bool:
+    def matches(self, rel: str, roots: Optional[frozenset] = None, item: Optional[str] = None) -> bool:
         if self.path:
             return rel == self.path or rel.startswith(self.path + "/")
-        prof, kind, item = classify(rel)
+        prof, kind, found_item = classify(rel, roots)
+        item = item if item is not None else found_item
         if self.profile and prof != self.profile:
             return False
         if self.kind and kind != self.kind:
             return False
-        if self.item and item != self.item:
-            return False
+        if self.item and item != self.item and not item.endswith("/" + self.item):
+            return False   # "skill:maps" matches the nested "productivity/maps"
         return True
 
     def describe(self) -> str:
@@ -113,7 +114,9 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
     root = Path(root)
     manifest = repo.load_manifest(snapshot_id)
     plan = RestorePlan(snapshot_id, selector)
-    wanted = {e["p"]: e for e in manifest["files"] if selector.matches(e["p"])}
+    wanted = {e["p"]: e for e in manifest["files"] if selector.matches(e["p"], item=e.get("i"))}
+    current = list(scan(root, include_secrets=bool(manifest.get("secrets")), extra_excludes=extra_excludes))
+    roots = skill_roots([e.rel for e in current] + [e["p"] for e in manifest["files"]])
     for rel, entry in sorted(wanted.items()):
         if _same_as_disk(repo, entry, root / rel):
             plan.unchanged += 1
@@ -122,10 +125,10 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
     # Files in scope today that the snapshot did not have. Secrets are only removed when the
     # snapshot itself captured secrets (otherwise their absence means "not backed up", not "deleted").
     scope = manifest.get("scope")
-    for cur in scan(root, include_secrets=bool(manifest.get("secrets")), extra_excludes=extra_excludes):
-        if scope is not None and classify(cur.rel)[1] not in scope:
+    for cur in current:
+        if scope is not None and classify(cur.rel, roots)[1] not in scope:
             continue  # a scoped snapshot says nothing about kinds it did not capture
-        if cur.rel not in wanted and selector.matches(cur.rel):
+        if cur.rel not in wanted and selector.matches(cur.rel, roots):
             plan.delete.append(cur.rel)
     if not wanted and not plan.delete:
         raise RestoreError(f"snapshot {snapshot_id} has nothing matching {selector.describe()}")
