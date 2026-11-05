@@ -35,7 +35,8 @@ def op_status() -> str:
     try:
         repo = S.open_repo(st)
     except LockedError as exc:
-        return f"🔒 {exc}. Set ARK_PASSPHRASE (hermes config set secret or .env) and try again."
+        return (f"🔒 {exc}. Add ARK_PASSPHRASE=… to your Hermes .env, then restart the gateway.\n"
+                "   Automatic snapshots are paused until then; chats keep working normally.")
     snaps = list_snapshots(repo)
     lines = [f"🛡  Ark repository: {st.repository}",
              f"   encryption: {'AES-256-GCM 🔒' if repo.encrypted else 'off ⚠'} · credentials: {'included' if st.include_secrets else 'excluded'}",
@@ -297,8 +298,29 @@ def op_verify(remote: bool = False, quick: bool = False) -> str:
     if good:
         lines.append(f"  Newest intact snapshot: {good[-1]}")
     if not remote:
-        lines.append("  If you have an off-site copy, `hermes ark pull` re-fetches missing data.")
+        lines.append("  Fix it with `hermes ark repair` (re-fetches damaged and missing data from your off-site copy).")
     return "\n".join(lines)
+
+
+def op_repair() -> str:
+    """Replace damaged or missing local data with clean copies from the off-site remote."""
+    st = S.load()
+    remote = S.remote_backend(st)
+    with repo_lock(S.lock_path(st)):
+        repo = S.open_repo(st)
+        before = verify(repo)
+        if before.ok:
+            return f"✓ Nothing to repair: {before.snapshots} snapshot(s) verified."
+        for blob_id in before.corrupt:
+            repo.delete_blob(blob_id)                     # so the sync below fetches a clean copy
+        Repository.open(remote, S.passphrase())           # same passphrase, same repository
+        res = sync(remote, S.backend(st))
+        after = verify(repo)
+    if after.ok:
+        return (f"✓ Repaired: replaced {len(before.corrupt)} damaged and {len(before.missing)} missing blob(s) "
+                f"({res.copied} object(s) from {remote.label}). All {after.snapshots} snapshot(s) restorable again.")
+    return (f"✗ Still damaged after repair: {len(after.corrupt)} damaged, {len(after.missing)} missing blob(s) — the off-site "
+            f"copy lacks them too. Intact snapshots: {after.snapshots - len(after.damaged_snapshots())} of {after.snapshots}.")
 
 
 def _guard(fn, *a, **kw) -> str:
@@ -326,6 +348,7 @@ SLASH_HELP = """/ark — encrypted, versioned backups of your Hermes
   /ark prune [dry]     apply the retention policy and free space
   /ark push            copy new snapshots to the off-site remote
   /ark verify [quick] [remote]  prove the backups can be restored
+  /ark repair          re-fetch damaged data from the off-site copy
   /ark restore <what> [snap] [yes]
                        preview, then restore: all · memory · soul · skills · skill:<name>
                        · config · cron · plugin:<name> · file:<path> · <profile>/memory
@@ -350,6 +373,8 @@ def handle_slash(raw_args: str = "", **_: object) -> str:
         return _guard(op_show, *(rest[:1] or []))
     if cmd == "push":
         return _guard(op_push)
+    if cmd == "repair":
+        return _guard(op_repair)
     if cmd == "verify":
         return _guard(op_verify, remote="remote" in rest, quick="quick" in rest)
     if cmd == "prune":
@@ -393,6 +418,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     p = sub.add_parser("verify", help="Prove every snapshot can be restored")
     p.add_argument("--remote", action="store_true", help="Verify the off-site copy instead of the local one")
     p.add_argument("--quick", action="store_true", help="Only check that every blob exists")
+    sub.add_parser("repair", help="Re-fetch damaged or missing data from the off-site copy")
     p = sub.add_parser("forget", help="Delete specific snapshots")
     p.add_argument("snapshots", nargs="+")
     p = sub.add_parser("restore", help="Restore everything or one item (preview unless --yes)")
@@ -454,6 +480,8 @@ def run_cli(args: argparse.Namespace) -> int:
         out = _guard(op_show, args.snapshot)
     elif cmd == "prune":
         out = _guard(op_prune, dry_run=args.dry_run)
+    elif cmd == "repair":
+        out = _guard(op_repair)
     elif cmd == "push":
         out = _guard(op_push, mirror=args.mirror)
     elif cmd == "pull":

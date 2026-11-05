@@ -118,11 +118,15 @@ def _is_secret(rel_in_home: PurePosixPath) -> bool:
     return (len(parts) == 1 and parts[0] in SECRET_ROOT_FILES) or (parts and parts[0] in SECRET_ROOT_DIRS)
 
 
-def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterable[str] = ()) -> Iterator[FileEntry]:
+def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterable[str] = (),
+         top_dirs: Optional[frozenset] = None) -> Iterator[FileEntry]:
     """Yield every file to capture under *root* (a Hermes home), in a stable order.
 
     Symlinks, sockets and devices are skipped (a zip/restore cannot hold them faithfully, and a
     symlink could pull files from outside the home into a backup).
+
+    *top_dirs* limits the walk to those folders at each home root (files at the root are always
+    listed): a brain snapshot then never walks thousands of session files.
     """
     root = Path(root)
     extra = tuple(e.strip("/") for e in extra_excludes if e.strip("/"))
@@ -135,6 +139,8 @@ def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterab
                 child = d / name
                 rel = rel_dir / name
                 if child.is_symlink():
+                    continue
+                if top_dirs is not None and len(rel.parts) == 1 and name not in top_dirs:
                     continue
                 if _excluded_under_home(rel, True):
                     continue
@@ -235,3 +241,17 @@ def classify(rel: str, roots: Optional[frozenset] = None) -> tuple[str, str, str
     if top == "cache":
         return profile, "media", parts[1] if len(parts) > 1 else ""
     return profile, "other", top
+
+
+# Folders that hold each kind, for walks that only need some kinds.
+KIND_DIRS = {"memory": {"memories"}, "skill": {"skills"}, "cron": {"cron"}, "soul": set(), "config": set()}
+
+
+def dirs_for_kinds(kinds: Iterable[str]) -> Optional[frozenset]:
+    """Top-level folders needed to see *kinds*, or None when some kind needs a full walk."""
+    out: set[str] = set()
+    for k in kinds:
+        if k not in KIND_DIRS:
+            return None
+        out |= KIND_DIRS[k]
+    return frozenset(out)

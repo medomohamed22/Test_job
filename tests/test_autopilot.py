@@ -253,3 +253,22 @@ def test_guard_counts_entries_in_small_memories(hermes_home):
     (hermes_home / "memories" / "MEMORY.md").write_text(facts[-1])                      # 4 of 5 gone
     alarms = compare(before, measure(hermes_home))
     assert alarms and "4 of 5 memory entries removed" in alarms[0].message
+
+
+def test_repair_replaces_corrupted_blobs_from_remote(plugin, hermes_home, tmp_path, monkeypatch):
+    store = {}
+    monkeypatch.setattr(plugin.settings, "_get_config", lambda k, d=None: store.get(k, d))
+    plugin.cli.op_snapshot(label="x")
+    store["remote"] = str(tmp_path / "nas")
+    assert "Pushed" in plugin.cli.op_push()
+    repo_dir = plugin.settings.load().repository
+    blobs = sorted(p for p in (repo_dir / "blobs").rglob("*") if p.is_file())
+    for p in blobs[:3]:
+        data = bytearray(p.read_bytes())
+        data[-1] ^= 0xFF
+        p.write_bytes(bytes(data))
+    blobs[3].unlink()
+    assert "Problems" in plugin.cli.op_verify() and "ark repair" in plugin.cli.op_verify()
+    out = plugin.cli.op_repair()
+    assert out.startswith("✓ Repaired: replaced 3 damaged and 1 missing"), out
+    assert "Verified" in plugin.cli.op_verify()

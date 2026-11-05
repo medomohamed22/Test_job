@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from .repo import Repository, new_snapshot_id
-from .scanner import FileEntry, classify, scan, skill_roots
+from .scanner import FileEntry, classify, dirs_for_kinds, scan, skill_roots
 
 CHUNK = 1 << 20          # 1 MiB chunks: SQLite pages stay aligned, so an edited DB re-uploads only touched chunks
 SMALL = 4 << 20          # files up to 4 MiB are one blob
@@ -90,7 +90,8 @@ def create_snapshot(
     scope_set = frozenset(scope) if scope is not None else None
     entries, skipped = [], []
     total = new_bytes = new_blobs = 0
-    found = list(scan(root, include_secrets=include_secrets, extra_excludes=extra_excludes))
+    top = dirs_for_kinds(scope_set) if scope_set is not None else None
+    found = list(scan(root, include_secrets=include_secrets, extra_excludes=extra_excludes, top_dirs=top))
     roots = skill_roots(e.rel for e in found)
     for entry in found:
         if scope_set is not None and classify(entry.rel, roots)[1] not in scope_set:

@@ -141,7 +141,7 @@ Settings (Desktop *Settings → Plugins → Hermes Ark*, or `config.yaml` under 
 ## Development
 
 ```bash
-python -m pytest tests                       # 55 tests: engine, restore, autopilot, off-site, Desktop API
+python -m pytest tests                       # 61 tests: engine, restore, autopilot, off-site, Desktop API
 ARK_TEST_S3_ENDPOINT=… ARK_TEST_S3_BUCKET=… ARK_TEST_S3_KEY=… ARK_TEST_S3_SECRET=… python -m pytest tests  # + real S3
 hermes plugins validate . --install-deps
 ```

@@ -22,7 +22,7 @@ class BrainState:
 
 def measure(root: Path | str) -> BrainState:
     st = BrainState()
-    found = list(scan(root))
+    found = list(scan(root, top_dirs=frozenset({"memories", "skills"})))
     roots = skill_roots(e.rel for e in found)
     for e in found:
         profile, kind, item = classify(e.rel, roots)
