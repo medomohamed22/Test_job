@@ -10,7 +10,7 @@ browser tab; the raw links show plain text you can select and copy:
 | The pull request description; paste it exactly | https://raw.githubusercontent.com/medomohamed22/hermes-ark/ccr-48a5f4a9-dk089c/submission/hermes-ark-PR.md |
 | The one-click "new file" link | https://raw.githubusercontent.com/medomohamed22/hermes-ark/ccr-48a5f4a9-dk089c/submission/pr-link.txt (open it, copy the whole single line, open that URL) |
 
-Below, "", "" and "" mean the content at these links.
+Below, "`hermes-ark.yaml`", "`hermes-ark-PR.md`" and "`pr-link.txt`" mean the content at these links.
 
 Goal: a pull request from `medomohamed22`'s fork into **`NousResearch/hermes-agent`, branch `main`**, that adds one
 file, `plugin-catalog/hermes-ark.yaml`, titled `feat(plugin-catalog): add hermes-ark plugin`.
