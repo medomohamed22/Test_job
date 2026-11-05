@@ -91,7 +91,7 @@ def test_guard_flags_large_memory_loss_only(hermes_home):
     assert compare(before, measure(hermes_home)) == []
     (hermes_home / "memories" / "MEMORY.md").write_text("- fact\n")                    # wiped
     alarms = compare(before, measure(hermes_home))
-    assert len(alarms) == 1 and alarms[0].what == "memory" and "shrank" in alarms[0].message
+    assert len(alarms) == 1 and alarms[0].what == "memory"
 
 
 def test_guard_flags_mass_skill_removal(hermes_home):
@@ -242,3 +242,14 @@ def test_guard_catches_skills_deleted_one_call_at_a_time(plugin, hermes_home):
     out = json.loads(plugin.auto.tool_execution(tool_name="skill_manage", args={"action": "delete", "name": "d"},
                                                 next_call=delete("d"), session_id="s2"))
     assert out.get("ark_health_guard") is None
+
+
+def test_guard_counts_entries_in_small_memories(hermes_home):
+    facts = ["User's name is Medo", "Medo lives in Cairo", "Medo prefers tea", "Medo builds plugins", "Medo learns Kotlin"]
+    (hermes_home / "memories" / "MEMORY.md").write_text("\n§\n".join(facts))           # ~100 bytes only
+    before = measure(hermes_home)
+    (hermes_home / "memories" / "MEMORY.md").write_text("\n§\n".join(facts[:4]))      # normal: one fact removed
+    assert compare(before, measure(hermes_home)) == []
+    (hermes_home / "memories" / "MEMORY.md").write_text(facts[-1])                      # 4 of 5 gone
+    alarms = compare(before, measure(hermes_home))
+    assert alarms and "4 of 5 memory entries removed" in alarms[0].message

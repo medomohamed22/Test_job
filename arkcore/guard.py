@@ -13,6 +13,7 @@ from .scanner import classify, scan
 class BrainState:
     memory: dict[str, int] = field(default_factory=dict)   # rel path -> bytes (memory + SOUL)
     skills: dict[str, int] = field(default_factory=dict)   # "profile/skill" -> total bytes
+    entries: dict[str, int] = field(default_factory=dict)  # memory file -> number of §-separated entries
 
     @property
     def memory_bytes(self) -> int:
@@ -25,6 +26,12 @@ def measure(root: Path | str) -> BrainState:
         profile, kind, item = classify(e.rel)
         if kind in ("memory", "soul"):
             st.memory[e.rel] = e.size
+            if kind == "memory" and e.size <= MAX_ENTRY_SCAN:
+                try:
+                    text = e.path.read_text(encoding="utf-8", errors="replace")
+                    st.entries[e.rel] = sum(1 for part in text.split(ENTRY_DELIMITER) if part.strip())
+                except OSError:
+                    pass
         elif kind == "skill":
             key = f"{profile}/{item}"
             st.skills[key] = st.skills.get(key, 0) + e.size
@@ -42,6 +49,11 @@ class Alarm:
 # losing most of the memory in one tool call is not.
 SHRINK_RATIO = 0.5
 SHRINK_MIN_BYTES = 200
+# Hermes' built-in memory stores one fact per entry, separated by "§". Losing half of the facts is
+# alarming even when the file is tiny (5 short facts are ~170 bytes).
+ENTRY_DELIMITER = "\n§\n"
+MIN_ENTRIES = 3
+MAX_ENTRY_SCAN = 2 << 20
 
 
 def compare(before: BrainState, after: BrainState) -> list[Alarm]:
@@ -49,10 +61,16 @@ def compare(before: BrainState, after: BrainState) -> list[Alarm]:
     for rel, size in before.memory.items():
         now = after.memory.get(rel, 0)
         lost = size - now
-        if size >= SHRINK_MIN_BYTES and lost >= SHRINK_MIN_BYTES and now <= size * (1 - SHRINK_RATIO):
+        hint = "memory" if "SOUL" not in rel else "soul"
+        n_before, n_after = before.entries.get(rel, 0), after.entries.get(rel, 0)
+        if rel not in after.memory and size >= 40:
+            alarms.append(Alarm("memory", f"{rel} was deleted", hint))
+        elif n_before >= MIN_ENTRIES and n_after <= n_before * (1 - SHRINK_RATIO):
+            alarms.append(Alarm("memory", f"{rel}: {n_before - n_after} of {n_before} memory entries removed "
+                                          f"({size} → {now} bytes)", hint))
+        elif size >= SHRINK_MIN_BYTES and lost >= SHRINK_MIN_BYTES and now <= size * (1 - SHRINK_RATIO):
             pct = round(100 * lost / size)
-            gone = "was deleted" if rel not in after.memory else f"shrank {pct}% ({size} → {now} bytes)"
-            alarms.append(Alarm("memory", f"{rel} {gone} in a single change", "memory" if "SOUL" not in rel else "soul"))
+            alarms.append(Alarm("memory", f"{rel} shrank {pct}% ({size} → {now} bytes)", hint))
     removed = sorted(set(before.skills) - set(after.skills))
     if len(removed) >= 2 or (removed and len(before.skills) <= 3):
         names = ", ".join(r.split("/", 1)[1] for r in removed[:6])
