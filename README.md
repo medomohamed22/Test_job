@@ -9,18 +9,25 @@ encrypted, deduplicated and restorable piece by piece**.
 
 > Status: work in progress for the Hermes Agent Plugin Hackathon (Nov 2026).
 
-## What works today (v0.1)
+## What works today (v0.2)
 
 - `hermes ark init` — create a repository, encrypted with AES-256-GCM (key from your passphrase via scrypt).
 - `hermes ark snap [label]` — snapshot memory, SOUL, skills, config, cron, sessions (`state.db` copied safely while Hermes runs) and **every profile**.
 - Deduplication — unchanged files cost nothing; large files are chunked so an edited database stores only the changed MiB.
 - `hermes ark list` / `hermes ark diff [A] [B]` — see what changed (🧠 memory, 🛠 skills, ⚙ config…).
-- `/ark` in any chat (CLI, TUI, Desktop, Telegram, Discord…): `status`, `snap`, `list`, `diff`.
+- `hermes ark show [snap]` — what a snapshot holds, grouped as memory, soul, skills, config, cron, sessions, plugins, per profile.
+- **Item-level restore** — `hermes ark restore <what> [snap]` previews first and applies with `--yes`:
+  `all` · `memory` · `soul` · `skills` · `skill:<name>` · `config` · `cron` · `sessions` · `plugin:<name>` · `file:<path>` · `<profile>/memory`.
+  - A **safety snapshot** is taken before every restore, so a restore can itself be undone.
+  - Every blob is fetched and integrity-checked **before the first write**: a damaged backup never leaves a half-restored home.
+  - Writes are atomic, never follow symlinks out of the Hermes home, and the sessions database is only restored while the gateway is stopped.
+  - Credentials that were not captured are never deleted by a restore.
+- `/ark` in any chat (CLI, TUI, Desktop, Telegram, Discord…): `status`, `snap`, `list`, `diff`, `show`, `restore … yes`.
 - **Credentials are never captured** (`.env`, `auth.json`, vault files, pairing tokens, browser login stores) unless you enable `include_secrets` *and* the repository is encrypted.
 
 ## Roadmap (this week)
 
-- [ ] Item-level restore (`restore memory`, `restore skill:<name>`) with an automatic safety snapshot first
+- [x] Item-level restore with an automatic safety snapshot first
 - [ ] Automatic snapshots: before memory/skill writes, at session end, on a schedule; smart retention
 - [ ] Health guard: alert when memory or skills suddenly shrink
 - [ ] Off-site: S3-compatible storage (AWS, Cloudflare R2, Backblaze B2, MinIO), push/pull to a new machine

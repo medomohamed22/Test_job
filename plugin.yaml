@@ -1,5 +1,5 @@
 name: hermes-ark
-version: "0.1.0"
+version: "0.2.0"
 description: "Encrypted, versioned backups of your whole Hermes - memory, SOUL, skills, config, cron, sessions and every profile - with item-level restore. Deduplicated snapshots in a repository you control; credentials are never captured unless you opt in and the repository is encrypted."
 author: medomohamed22
 license: MIT

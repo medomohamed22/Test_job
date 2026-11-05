@@ -10,6 +10,7 @@ from typing import Optional
 
 from . import settings as S
 from .arkcore.repo import LockedError, Repository, RepoError
+from .arkcore.restore import RestoreError, Selector, apply_plan, plan_restore
 from .arkcore.snapshot import create_snapshot, diff_manifests, human_size, list_snapshots
 
 KIND_ICONS = {"memory": "🧠", "soul": "✨", "skill": "🛠", "config": "⚙", "cron": "⏰", "sessions": "💬",
@@ -90,12 +91,82 @@ def op_diff(old_ref: str = "latest~1", new_ref: str = "latest") -> str:
     return "\n".join(lines)
 
 
+def op_show(ref: str = "latest") -> str:
+    """What a snapshot contains, grouped the way people think about Hermes."""
+    repo = S.open_repo()
+    sid = repo.resolve(ref)
+    m = repo.load_manifest(sid)
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for f in m["files"]:
+        groups.setdefault((f.get("pr", "default"), f.get("k", "other")), []).append(f)
+    lines = [f"Snapshot {sid} · {m.get('created', '')} · {m.get('trigger', '')}"
+             + (f" · {m['label']}" if m.get("label") else ""),
+             f"  {len(m['files'])} files, {human_size(sum(f['s'] for f in m['files']))}"
+             + (" · includes credentials 🔑" if m.get("secrets") else "")]
+    for (profile, kind) in sorted(groups):
+        files = groups[(profile, kind)]
+        items = sorted({f.get("i") for f in files if f.get("i")})
+        detail = ", ".join(items[:8]) + (f" +{len(items) - 8}" if len(items) > 8 else "") if kind in ("skill", "plugin", "memory") else ""
+        lines.append(f"  {KIND_ICONS.get(kind, '📄')} {profile}/{kind}: {len(files)} file(s), {human_size(sum(f['s'] for f in files))}"
+                     + (f"  [{detail}]" if detail else ""))
+    return "\n".join(lines)
+
+
+def _gateway_running() -> bool:
+    try:
+        from gateway.status import live_gateway_pid_for_home
+        return live_gateway_pid_for_home(S.hermes_home()) is not None
+    except Exception:
+        return False
+
+
+def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, profile: Optional[str] = None,
+               from_chat: bool = False) -> str:
+    """Preview (default) or apply a restore. Applying always takes a safety snapshot first."""
+    st = S.load()
+    repo = S.open_repo(st)
+    sid = repo.resolve(ref)
+    selector = Selector.parse(what, profile)
+    home = S.hermes_home()
+    plan = plan_restore(repo, sid, home, selector, extra_excludes=st.exclude)
+    if plan.empty:
+        return f"✓ {selector.describe().capitalize()} already matches snapshot {sid} ({plan.unchanged} file(s)). Nothing to do."
+    if plan.touches_sessions_db and (from_chat or _gateway_running()):
+        return ("✗ Restoring the sessions database (state.db) needs Hermes to be stopped.\n"
+                "  Stop the gateway (`hermes gateway stop`) and run in a terminal:\n"
+                f"    hermes ark restore {what} {ref} --yes\n"
+                "  Or restore everything except sessions, e.g. `memory`, `skills`, `config`.")
+    lines = [f"Restore {selector.describe()} from {sid}:"]
+    for e in plan.write[:25]:
+        state = "recreate" if not (home / e["p"]).exists() else "revert"
+        lines.append(f"  ↺ {KIND_ICONS.get(e.get('k', 'other'), '📄')} {e['p']}  ({state}, {human_size(e['s'])})")
+    for rel in plan.delete[:25]:
+        lines.append(f"  ✗ {rel}  (did not exist in that snapshot)")
+    more = len(plan.write) + len(plan.delete) - min(len(plan.write), 25) - min(len(plan.delete), 25)
+    if more > 0:
+        lines.append(f"  … and {more} more")
+    if not yes:
+        cmd = f"/ark restore {what} {ref} yes" if from_chat else f"hermes ark restore {what} {ref} --yes"
+        lines.append(f"\nNothing changed yet. To apply, run: {cmd}\n"
+                     "(A safety snapshot is taken first, so this restore can itself be undone.)")
+        return "\n".join(lines)
+    include = st.include_secrets and repo.encrypted
+    safety = create_snapshot(repo, home, label=f"before restore of {selector.describe()} from {sid}",
+                             trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
+    res = apply_plan(repo, plan, home)
+    lines.append(f"\n✓ Restored {res.written} file(s), removed {res.deleted}. "
+                 f"Safety snapshot: {safety.snapshot_id} (undo with `restore {what} {safety.snapshot_id}`).")
+    if any(e.get("k") in ("memory", "soul", "skill", "config") for e in plan.write):
+        lines.append("  New sessions pick up the restored memory/skills/config; start a new chat (/new) to use them now.")
+    return "\n".join(lines)
+
+
 def _guard(fn, *a, **kw) -> str:
     try:
         return fn(*a, **kw)
     except LockedError as exc:
         return f"🔒 {exc}."
-    except (RepoError, ValueError, OSError) as exc:
+    except (RepoError, RestoreError, ValueError, OSError) as exc:
         return f"✗ {exc}"
 
 
@@ -109,6 +180,10 @@ SLASH_HELP = """/ark — encrypted, versioned backups of your Hermes
   /ark snap [label]    take a snapshot now
   /ark list            list snapshots
   /ark diff [A] [B]    what changed between two snapshots (default: previous → latest)
+  /ark show [snap]     what a snapshot contains
+  /ark restore <what> [snap] [yes]
+                       preview, then restore: all · memory · soul · skills · skill:<name>
+                       · config · cron · plugin:<name> · file:<path> · <profile>/memory
 
 Set up once in a terminal: hermes ark init"""
 
@@ -126,6 +201,14 @@ def handle_slash(raw_args: str = "", **_: object) -> str:
         return _guard(op_list)
     if cmd == "diff":
         return _guard(op_diff, *(rest[:2] or []))
+    if cmd == "show":
+        return _guard(op_show, *(rest[:1] or []))
+    if cmd in ("restore", "rewind"):
+        yes = bool(rest) and rest[-1].lower() in ("yes", "--yes", "-y", "confirm")
+        args = rest[:-1] if yes else rest
+        if not args:
+            return "Usage: /ark restore <what> [snapshot] [yes]   e.g. /ark restore memory latest~1"
+        return _guard(op_restore, args[0], args[1] if len(args) > 1 else "latest", yes=yes, from_chat=True)
     return f"Unknown subcommand {cmd!r}.\n\n{SLASH_HELP}"
 
 
@@ -146,6 +229,14 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     p = sub.add_parser("diff", help="Show what changed between two snapshots")
     p.add_argument("old", nargs="?", default="latest~1")
     p.add_argument("new", nargs="?", default="latest")
+    p = sub.add_parser("show", help="Show what a snapshot contains")
+    p.add_argument("snapshot", nargs="?", default="latest")
+    p = sub.add_parser("restore", help="Restore everything or one item (preview unless --yes)")
+    p.add_argument("what", nargs="?", default="all",
+                   help="all | memory | soul | skills | skill:<name> | config | cron | sessions | plugin:<name> | file:<path> | <profile>/<what>")
+    p.add_argument("snapshot", nargs="?", default="latest")
+    p.add_argument("--profile", help="Limit to one profile")
+    p.add_argument("-y", "--yes", action="store_true", help="Apply (otherwise only preview)")
 
 
 def _ask_new_passphrase() -> Optional[str]:
@@ -195,6 +286,10 @@ def run_cli(args: argparse.Namespace) -> int:
         out = _guard(op_list, args.n)
     elif cmd == "diff":
         out = _guard(op_diff, args.old, args.new)
+    elif cmd == "show":
+        out = _guard(op_show, args.snapshot)
+    elif cmd == "restore":
+        out = _guard(op_restore, args.what, args.snapshot, yes=args.yes, profile=args.profile)
     else:
         out = f"unknown command {cmd}"
     print(out)
