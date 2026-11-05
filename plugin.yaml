@@ -1,5 +1,5 @@
 name: hermes-ark
-version: "0.5.0"
+version: "0.6.0"
 description: "Encrypted, versioned backups of your whole Hermes - memory, SOUL, skills, config, cron, sessions and every profile - with item-level restore. Deduplicated snapshots in a repository you control; credentials are never captured unless you opt in and the repository is encrypted."
 author: medomohamed22
 license: MIT
@@ -53,6 +53,11 @@ config_schema:
     default: true
     label: "Health guard"
     description: "Warn (inside the tool result, so the agent tells you) when memory or skills suddenly shrink or vanish."
+  allow_agent_admin:
+    type: bool
+    default: false
+    label: "Let the agent manage Ark"
+    description: "Off (recommended): the agent cannot prune, restore, delete or reconfigure Ark, or switch it off — only you can, from your terminal, /ark or Desktop. Protects your backups from prompt injection."
   keep_last:
     type: int
     default: 10

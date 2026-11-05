@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from . import selfdefense as D
 from . import settings as S
 from .arkcore.guard import compare, format_alarms, measure
 from .arkcore.lock import LockBusy, _lock as _flock_raw, _unlock as _funlock_raw, repo_lock
@@ -248,7 +249,7 @@ def on_session_end(**_: Any) -> None:
     threading.Thread(target=run, name="hermes-ark-snapshot", daemon=True).start()
 
 
-def _attach_note(result: Any, note: str) -> Any:
+def _attach_note(result: Any, note: str, key: str = "ark_health_guard") -> Any:
     """Add the guard's note to a tool result without breaking its JSON shape."""
     if isinstance(result, str):
         try:
@@ -256,11 +257,11 @@ def _attach_note(result: Any, note: str) -> Any:
         except ValueError:
             return result + "\n\n" + note
         if isinstance(data, dict):
-            data["ark_health_guard"] = note
+            data[key] = note
             return json.dumps(data, ensure_ascii=False)
         return result + "\n\n" + note
     if isinstance(result, dict):
-        return {**result, "ark_health_guard": note}
+        return {**result, key: note}
     return result
 
 
@@ -297,6 +298,35 @@ def _touches_brain(tool_name: str, args: Any) -> bool:
     return False
 
 
+def _agent_admin() -> bool:
+    try:
+        return S.load().allow_agent_admin
+    except Exception:
+        return False
+
+
+def _tamper_checked(call):
+    """Wrap a command/file tool so a change to Ark itself is reported, however it was disguised."""
+    def wrapped(a):
+        try:
+            before = D.fingerprint()
+        except Exception:
+            return call(a)
+        result = call(a)
+        try:
+            after = D.fingerprint()
+            changes = D.tamper_changes(before, after, ark_busy=_full_running.is_set())
+            if changes:
+                restored = D.revert_settings(before.get("settings"), after.get("settings"))
+                logger.warning("Hermes Ark tamper alarm: %s (restored: %s)", "; ".join(changes), restored)
+                record_event("tamper", "; ".join(changes) + (f" — restored {', '.join(restored)}" if restored else ""))
+                return _attach_note(result, D.format_tamper(changes, restored), key="ark_tamper_alarm")
+        except Exception as exc:
+            logger.debug("Hermes Ark tamper check failed: %s", exc)
+        return result
+    return wrapped
+
+
 # Per-conversation baseline, so losses spread over several tool calls (deleting skills one by one)
 # are caught too. Expires after a quiet hour; each alarm is reported once per conversation.
 _BASELINE_TTL_S = 3600
@@ -309,7 +339,22 @@ def _conversation_key(ctx: dict) -> str:
 
 
 def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **ctx: Any) -> Any:
-    """Middleware around writes to Hermes' own brain: checkpoint before, guard after."""
+    """Middleware: Ark's self-defense first, then checkpoint before / guard after brain writes."""
+    try:
+        blocked = D.check(tool_name, args)
+    except Exception as exc:
+        logger.debug("Hermes Ark self-defense check failed: %s", exc)
+        blocked = None
+    if blocked:
+        shown = json.dumps(args, ensure_ascii=False, default=str)[:200] if args is not None else ""
+        logger.warning("Hermes Ark blocked an agent %s call: %s", tool_name, shown)
+        try:
+            record_event("blocked", f"blocked agent {tool_name}: {shown}")
+        except Exception:
+            pass
+        return D.blocked_result(blocked)
+    if tool_name in D.TAMPER_TOOLS and not _agent_admin():
+        next_call = _tamper_checked(next_call)
     try:
         watched = _touches_brain(tool_name, args)
     except Exception:

@@ -27,6 +27,12 @@ const ID = 'hermes-ark'
 const PATH = '/ark'
 const KEY = [ID]
 
+const ALERT_KINDS = {
+  guard: { title: 'Health guard', sub: 'the version before the change is saved' },
+  blocked: { title: 'Agent blocked', sub: 'the agent tried to change or delete your backups — possibly a prompt injection; nothing was changed' },
+  tamper: { title: 'Tamper alarm', sub: 'Ark itself was changed during an agent tool call — check settings and run Verify' }
+}
+
 const KIND = {
   memory: { icon: 'lightbulb', label: 'Memory' },
   soul: { icon: 'heart', label: 'SOUL' },
@@ -144,7 +150,7 @@ function ArkPage({ api }) {
     return h(EmptyState, { title: 'Repository locked', description: 'Set ARK_PASSPHRASE in this profile\'s secrets so Ark can open its encrypted repository.' })
   }
 
-  const guard = (st.events || []).filter((e) => e.kind === 'guard').slice(0, 1)[0]
+  const guard = (st.events || []).filter((e) => ALERT_KINDS[e.kind]).slice(0, 1)[0]
   return h('div', { style: S.page },
     h('div', { style: S.header },
       h(Codicon, { name: 'shield', style: { fontSize: 20, color: 'var(--ui-accent)' } }),
@@ -161,8 +167,8 @@ function ArkPage({ api }) {
     guard ? h('div', { style: S.alert },
       h(Codicon, { name: 'warning', style: { fontSize: 16, color: 'var(--ui-text-warning, var(--ui-accent))' } }),
       h('div', { style: { flex: 1 } },
-        h('div', { style: { fontWeight: 600, color: 'var(--ui-text-primary)' } }, 'Health guard: ', guard.message),
-        h('div', { style: S.sub }, `${when(guard.at)} · the version before the change is saved`)),
+        h('div', { style: { fontWeight: 600, color: 'var(--ui-text-primary)' } }, ALERT_KINDS[guard.kind].title, ': ', guard.message),
+        h('div', { style: S.sub }, `${when(guard.at)} · ${ALERT_KINDS[guard.kind].sub}`)),
       guard.snapshot ? h(Button, { size: 'sm', variant: 'outline', onClick: () => setSelected(guard.snapshot) }, 'Review & restore') : null) : null,
     h('div', { style: S.body },
       h('div', { style: S.list }, h(ScrollArea, { style: { height: '100%' } }, h(Timeline, { snaps, selected, onSelect: setSelected }))),
@@ -289,11 +295,11 @@ function RestoreBox({ api, id, skills }) {
 function ShieldChip({ api }) {
   const { data } = useQuery({ queryKey: [...KEY, 'status'], queryFn: api.status, refetchInterval: 20000, retry: false })
   if (!data || data.state !== 'ready') return null
-  const recentGuard = (data.events || []).find((e) => e.kind === 'guard' && Date.now() - Date.parse(e.at) < 24 * 3600 * 1000)
-  const label = recentGuard ? 'Ark: check memory' : data.latest ? `Ark · ${when(data.latest.created)}` : 'Ark'
+  const recentGuard = (data.events || []).find((e) => ALERT_KINDS[e.kind] && Date.now() - Date.parse(e.at) < 24 * 3600 * 1000)
+  const label = recentGuard ? (recentGuard.kind === 'guard' ? 'Ark: check memory' : 'Ark: agent blocked') : data.latest ? `Ark · ${when(data.latest.created)}` : 'Ark'
   return h('button', {
     type: 'button',
-    title: recentGuard ? `Health guard: ${recentGuard.message}` : 'Hermes Ark backups',
+    title: recentGuard ? `${ALERT_KINDS[recentGuard.kind].title}: ${recentGuard.message}` : 'Hermes Ark backups',
     onClick: () => host.navigate(PATH),
     style: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 6px', fontSize: 11, background: 'transparent', border: 'none', cursor: 'pointer', color: recentGuard ? 'var(--ui-text-warning, var(--ui-accent))' : 'var(--ui-text-tertiary)' }
   }, h(Codicon, { name: recentGuard ? 'warning' : 'shield', style: { fontSize: 12 } }), label)

@@ -57,9 +57,9 @@ def op_status() -> str:
     ver = ap.get("last_verify")
     if ver:
         lines.append(f"   last verify: {ver['at'][:16].replace('T', ' ')} {'✓ ok' if ver['ok'] else '✗ problems'} ({ver['where']})")
-    guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error")][-3:]
+    guard = [e for e in ap.get("events", []) if e.get("kind") in ("guard", "error", "blocked", "tamper")][-3:]
     for e in guard:
-        icon = "⚠" if e["kind"] == "guard" else "✗"
+        icon = {"guard": "⚠", "blocked": "⛔", "tamper": "🚨"}.get(e["kind"], "✗")
         lines.append(f"   {icon} {e['at'][:16].replace('T', ' ')}  {e['message']}"
                      + (f"  (saved in {e['snapshot']})" if e.get("snapshot") else ""))
     return "\n".join(lines)

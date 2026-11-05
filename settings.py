@@ -26,7 +26,15 @@ def _config_fallback(key: str, default: Any = None) -> Any:
 
 
 _get_config: Callable[[str, Any], Any] = _config_fallback  # replaced in register()
-_set_config: Callable[[str, Any], None] = lambda key, value: None
+def _set_fallback(key: str, value: Any) -> None:
+    """Write ``plugins.entries.hermes-ark.settings.<key>`` without a plugin context (Desktop backend, tests)."""
+    from hermes_cli.config import save_config
+    path = ("plugins", "entries", PLUGIN_NAME, "settings", key)
+    save_config({"plugins": {"entries": {PLUGIN_NAME: {"settings": {key: value}}}}},
+                preserve_keys={path}, merge_existing=True)
+
+
+_set_config: Callable[[str, Any], None] = _set_fallback
 
 
 def bind(ctx) -> None:
@@ -78,6 +86,7 @@ class Settings:
     s3_endpoint: str = ""
     s3_region: str = "auto"
     auto_push: bool = True
+    allow_agent_admin: bool = False
 
 
 def _int(value: Any, default: int) -> int:
@@ -101,6 +110,7 @@ def load() -> Settings:
         s3_endpoint=str(get("s3_endpoint", "") or "").strip(),
         s3_region=str(get("s3_region", "auto") or "auto").strip(),
         auto_push=bool(get("auto_push", True)),
+        allow_agent_admin=bool(get("allow_agent_admin", False)),
     )
 
 

@@ -53,6 +53,7 @@ Then restart the gateway so chats and Telegram load it — and again after every
   when a remote is set, and **pruned** daily: last 10 · hourly for a day · daily for a week · weekly for a month ·
   monthly for a year. Snapshots you name yourself are kept.
 - **`ark_checkpoint` tool** — the agent saves a labelled snapshot before risky changes to Hermes itself.
+- **Self-defense** — a prompt-injected agent cannot prune, delete, reconfigure or switch off Ark: those tool calls are refused, disguised ones raise a tamper alarm and Ark restores its own settings.
   Restoring is always your decision, never the agent's.
 
 ## Restore — everything, or exactly the piece you lost

@@ -9,7 +9,10 @@ from typing import Iterable, Optional
 from .repo import Repository
 
 # Manual snapshots the user named are kept forever unless deleted explicitly.
-PINNED_TRIGGERS = ("cli", "chat", "agent", "manual", "desktop")
+PINNED_TRIGGERS = ("cli", "chat", "manual", "desktop")
+# Labelled snapshots the agent took (ark_checkpoint) are kept too, but only the newest few: a looping or
+# prompt-injected agent must not be able to fill the disk with snapshots retention can never remove.
+AGENT_PINNED_MAX = 20
 
 
 @dataclass
@@ -64,8 +67,14 @@ def decide(snapshots: Iterable[dict], policy: Policy) -> Decision:
             if k not in seen:
                 seen.append(k)
                 out.keep.setdefault(s["id"], name)
+    agent_kept = 0
     for s in snaps:
-        if policy.keep_labelled and s.get("label") and s.get("trigger") in PINNED_TRIGGERS:
+        if not (policy.keep_labelled and s.get("label")):
+            continue
+        if s.get("trigger") in PINNED_TRIGGERS:
+            out.keep.setdefault(s["id"], "labelled")
+        elif s.get("trigger") == "agent" and agent_kept < AGENT_PINNED_MAX:
+            agent_kept += 1
             out.keep.setdefault(s["id"], "labelled")
     out.drop = [s["id"] for s in snaps if s["id"] not in out.keep]
     return out
