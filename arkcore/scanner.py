@@ -33,6 +33,7 @@ EXCLUDED_ROOT_DIRS = frozenset({
     "state", "runtime", "plugin-update-checks", "source-checks",
     # The Webapp's signed-in session token: a credential, and stale on any other machine.
     "webapp",
+    ".curator_backups",      # the skill curator's own backups: a backup of a backup
 })
 
 # Root-level files that are machine state or regenerable caches, never user data.
@@ -40,6 +41,7 @@ EXCLUDED_ROOT_FILES = frozenset({
     "install_id",                          # this machine's identity; must not be cloned onto another
     "gateway_state.json", "gateway.sock.path", "gateway-starts.log",
     "models_dev_cache.json", "models_dev_cache.etag", "provider_models_cache.json",
+    ".clean_shutdown", ".skills_prompt_snapshot.json",   # runtime marker / regenerated prompt cache
 })
 # Inside cron/: the scheduler's own liveness markers.
 EXCLUDED_CRON_FILES = frozenset({"ticker_heartbeat", "ticker_last_success"})
@@ -218,7 +220,7 @@ def classify(rel: str, roots: Optional[frozenset] = None) -> tuple[str, str, str
     if top == "memories":
         return profile, "memory", parts[1] if len(parts) > 1 else ""
     if top == "skills":
-        item = parts[1]
+        item = parts[1] if len(parts) > 2 else ""      # files directly in skills/ are metadata
         if roots:
             d = rel
             base = prefix + "skills/"

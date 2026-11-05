@@ -204,3 +204,25 @@ def test_scan_skips_gateway_runtime_and_webapp_token(hermes_home):
     assert not {"install_id", "models_dev_cache.json", "gateway_state.json", "cron/ticker_heartbeat"} & r
     assert "desktop-plugins/mine/plugin.js" in r          # a hand-written desktop plugin is user data
     assert "cron/jobs.json" in r and "state.db" in r
+
+
+def test_diff_between_brain_and_full_snapshots_only_compares_common_kinds(hermes_home, tmp_path):
+    from arkcore.snapshot import BRAIN
+    repo = Repository.init(LocalBackend(tmp_path / "r"), None)
+    full = create_snapshot(repo, hermes_home).snapshot_id
+    (hermes_home / "memories" / "MEMORY.md").write_text("changed")
+    brain = create_snapshot(repo, hermes_home, scope=BRAIN).snapshot_id
+    changes = diff_manifests(repo.load_manifest(full), repo.load_manifest(brain))
+    assert [c.path for c in changes] == ["memories/MEMORY.md"]          # no fake "state.db removed"
+
+
+def test_scan_skips_hermes_internal_caches(hermes_home):
+    for rel in (".clean_shutdown", ".skills_prompt_snapshot.json", ".curator_backups/blobs/ab12"):
+        p = hermes_home / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x")
+    (hermes_home / "skills" / ".bundled_manifest").write_text("x")
+    r = rels(hermes_home)
+    assert not {".clean_shutdown", ".skills_prompt_snapshot.json"} & r
+    assert not any(p.startswith(".curator_backups") for p in r)
+    assert "skills/.bundled_manifest" in r and classify("skills/.bundled_manifest")[2] == ""

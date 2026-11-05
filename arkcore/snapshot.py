@@ -191,8 +191,13 @@ class Change:
 
 
 def diff_manifests(old: dict, new: dict) -> list[Change]:
-    a = {f["p"]: f for f in old["files"]}
-    b = {f["p"]: f for f in new["files"]}
+    """Changes between two snapshots. When either is scoped (a brain snapshot), only the kinds both
+    captured are compared: a brain snapshot is silent about sessions, not "they were deleted"."""
+    scopes = [set(m["scope"]) for m in (old, new) if m.get("scope") is not None]
+    common = set.intersection(*scopes) if scopes else None
+    keep = (lambda f: f.get("k") in common) if common is not None else (lambda f: True)
+    a = {f["p"]: f for f in old["files"] if keep(f)}
+    b = {f["p"]: f for f in new["files"] if keep(f)}
     changes = []
     for path in sorted(a.keys() | b.keys()):
         fa, fb = a.get(path), b.get(path)

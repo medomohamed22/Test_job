@@ -121,8 +121,8 @@ function makeApi(ctx) {
 
 // ---- page ------------------------------------------------------------------------------------
 function ArkPage({ api }) {
-  const status = useQuery({ queryKey: [...KEY, 'status'], queryFn: api.status, refetchInterval: 30000 })
-  const list = useQuery({ queryKey: [...KEY, 'snapshots'], queryFn: api.snapshots, refetchInterval: 30000 })
+  const status = useQuery({ queryKey: [...KEY, 'status'], queryFn: api.status, refetchInterval: 15000, staleTime: 0, refetchOnMount: 'always' })
+  const list = useQuery({ queryKey: [...KEY, 'snapshots'], queryFn: api.snapshots, refetchInterval: 15000, staleTime: 0, refetchOnMount: 'always' })
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(null)
   const snaps = (list.data && list.data.snapshots) || []
@@ -232,7 +232,7 @@ function Detail({ api, id }) {
         icon(k.icon),
         h('div', { style: { width: 110, color: 'var(--ui-text-primary)' } }, k.label, g.profile !== 'default' ? h('span', { style: S.sub }, ` · ${g.profile}`) : null),
         h('div', { style: { ...S.sub, width: 120 } }, `${g.files} file${g.files === 1 ? '' : 's'} · ${size(g.bytes)}`),
-        h('div', { style: { ...S.sub, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (g.kind === 'skill' || g.kind === 'plugin') ? g.items.join(', ') : ''))
+        h('div', { style: { ...S.sub, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (g.kind === 'skill' || g.kind === 'plugin') ? g.items.filter(Boolean).map((i) => i.split('/').pop()).join(', ') : ''))
     }),
 
     h('div', { style: S.section }, d.previous ? 'Changes since the previous snapshot' : 'First snapshot'),
@@ -245,7 +245,7 @@ function Detail({ api, id }) {
     changes.length > 80 ? h('div', { style: S.sub }, `… and ${changes.length - 80} more`) : null,
 
     h('div', { style: S.section }, 'Restore from this snapshot'),
-    h(RestoreBox, { api, id: d.id, skills: (d.groups.find((g) => g.kind === 'skill' && g.profile === 'default') || { items: [] }).items }))
+    h(RestoreBox, { api, id: d.id, skills: (d.groups.find((g) => g.kind === 'skill' && g.profile === 'default') || { items: [] }).items.filter(Boolean) }))
 }
 
 function RestoreBox({ api, id, skills }) {
@@ -287,7 +287,7 @@ function RestoreBox({ api, id, skills }) {
 
 // ---- status bar shield --------------------------------------------------------------------------
 function ShieldChip({ api }) {
-  const { data } = useQuery({ queryKey: [...KEY, 'status'], queryFn: api.status, refetchInterval: 60000, retry: false })
+  const { data } = useQuery({ queryKey: [...KEY, 'status'], queryFn: api.status, refetchInterval: 20000, retry: false })
   if (!data || data.state !== 'ready') return null
   const recentGuard = (data.events || []).find((e) => e.kind === 'guard' && Date.now() - Date.parse(e.at) < 24 * 3600 * 1000)
   const label = recentGuard ? 'Ark: check memory' : data.latest ? `Ark · ${when(data.latest.created)}` : 'Ark'
