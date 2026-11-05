@@ -9,7 +9,7 @@ from typing import Iterable, Optional
 from .repo import Repository
 
 # Manual snapshots the user named are kept forever unless deleted explicitly.
-PINNED_TRIGGERS = ("cli", "chat", "agent", "manual")
+PINNED_TRIGGERS = ("cli", "chat", "agent", "manual", "desktop")
 
 
 @dataclass

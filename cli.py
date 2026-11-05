@@ -205,7 +205,7 @@ def op_restore(what: str = "all", ref: str = "latest", *, yes: bool = False, pro
         return "\n".join(lines)
     include = st.include_secrets and repo.encrypted
     with repo_lock(S.lock_path(st)):
-        safety = create_snapshot(repo, home, label=f"before restore of {selector.describe()} from {sid}",
+        safety = create_snapshot(repo, home, label=f"before restoring {selector.describe()} ({sid[:15]})",
                                  trigger="pre-restore", include_secrets=include, extra_excludes=st.exclude)
         res = apply_plan(repo, plan, home)
     kept = _keep_offsite_settings(st)
@@ -241,10 +241,12 @@ def op_push(mirror: bool = False) -> str:
     res = sync(S.backend(st), remote, mirror=mirror)
     from . import auto
     auto.record_push(res.copied, res.bytes, remote.label)
+    warn = "" if S.open_repo(st).encrypted else ("\n⚠ This repository is NOT encrypted: the off-site copy is readable by anyone with "
+                                                 "access to it and cannot detect tampering. Re-create it with `hermes ark init` (encrypted).")
     if not res.copied and not res.deleted:
-        return f"✓ {remote.label} is up to date ({res.skipped} objects)."
+        return f"✓ {remote.label} is up to date ({res.skipped} objects)." + warn
     return (f"✓ Pushed to {remote.label}: {res.copied} object(s), {human_size(res.bytes)}"
-            f" · {len(res.snapshots_copied)} new snapshot(s)" + (f" · removed {res.deleted} stale object(s)" if res.deleted else ""))
+            f" · {len(res.snapshots_copied)} new snapshot(s)" + (f" · removed {res.deleted} stale object(s)" if res.deleted else "") + warn)
 
 
 def op_pull(remote_url: str = "", endpoint: str = "", region: str = "") -> str:

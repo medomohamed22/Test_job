@@ -23,6 +23,9 @@ from . import crypto
 from .backends import Backend, BackendError
 
 FORMAT = 1
+# Largest object Ark writes: a 4 MiB small-file blob, or a manifest. Manifests of very large homes
+# can exceed a few MiB, so the cap leaves generous room while still stopping decompression bombs.
+MAX_OBJECT = 256 << 20
 CONFIG_KEY = "ark.json"
 _RAW, _ZLIB = b"R", b"Z"
 
@@ -111,7 +114,13 @@ class Repository:
             payload = crypto.open_sealed(self.keys.enc, payload, aad)
         tag, body = payload[:1], payload[1:]
         if tag == _ZLIB:
-            return zlib.decompress(body)
+            # Bounded: Ark never writes an object above MAX_OBJECT bytes, so a larger expansion is a
+            # decompression bomb from a tampered (unencrypted) repository, not data.
+            d = zlib.decompressobj()
+            out = d.decompress(body, MAX_OBJECT + 1)
+            if len(out) > MAX_OBJECT or d.unconsumed_tail:
+                raise RepoError("object expands beyond the size limit (corrupted or tampered repository)")
+            return out
         if tag == _RAW:
             return body
         raise RepoError("unknown object encoding")

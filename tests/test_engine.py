@@ -188,3 +188,19 @@ def test_backend_rejects_path_traversal(tmp_path):
     for bad in ("../x", "/etc/passwd", "a/../../b", "a\\b", ""):
         with pytest.raises(BackendError):
             be.write(bad, b"x")
+
+
+def test_scan_skips_gateway_runtime_and_webapp_token(hermes_home):
+    for rel in ("webapp/session-token", "state/gateway.heartbeat", "runtime/x/.lock", "install_id",
+                "models_dev_cache.json", "gateway_state.json", "cron/ticker_heartbeat",
+                "plugin-update-checks/results.json", "desktop-plugins/pkg/plugin.js", "desktop-plugins/pkg/.hermes-package.json"):
+        p = hermes_home / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x")
+    (hermes_home / "desktop-plugins" / "mine").mkdir()
+    (hermes_home / "desktop-plugins" / "mine" / "plugin.js").write_text("export default {}")
+    r = rels(hermes_home)
+    assert not any(p.startswith(("webapp/", "state/", "runtime/", "plugin-update-checks/", "desktop-plugins/pkg")) for p in r)
+    assert not {"install_id", "models_dev_cache.json", "gateway_state.json", "cron/ticker_heartbeat"} & r
+    assert "desktop-plugins/mine/plugin.js" in r          # a hand-written desktop plugin is user data
+    assert "cron/jobs.json" in r and "state.db" in r

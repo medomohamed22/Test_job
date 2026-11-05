@@ -157,3 +157,30 @@ def test_restore_never_touches_runtime_lock_files(hermes_home, repo):
     assert "memories/MEMORY.md.lock" not in plan.delete
     apply_plan(repo, plan, hermes_home)
     assert lock.exists()
+
+
+def test_tampered_manifest_paths_and_modes_are_refused(hermes_home, tmp_path):
+    from arkcore.restore import _safe_target
+    for bad in ("C:/Windows/x", "..\\..\\x", "a/../../b", "/etc/passwd", "a\x00b"):
+        with pytest.raises(RestoreError):
+            _safe_target(hermes_home, bad)
+    repo = Repository.init(LocalBackend(tmp_path / "r"), None)              # unencrypted: manifest can be edited
+    sid = create_snapshot(repo, hermes_home).snapshot_id
+    m = repo.load_manifest(sid)
+    for f in m["files"]:
+        f["m"] = 0o4777                                                     # setuid + world-writable bits
+    repo.save_manifest(m)
+    (hermes_home / "SOUL.md").write_text("changed")
+    apply_plan(repo, plan_restore(repo, sid, hermes_home, Selector.parse("soul")), hermes_home)
+    assert (hermes_home / "SOUL.md").stat().st_mode & 0o7000 == 0
+
+
+def test_decompression_bomb_is_refused(tmp_path):
+    import zlib
+    from arkcore import repo as repo_mod
+    repo = Repository.init(LocalBackend(tmp_path / "r"), None)
+    bomb = b"Z" + zlib.compress(b"\0" * (repo_mod.MAX_OBJECT + 10), 9)       # tiny on disk, huge in memory
+    (tmp_path / "r" / "blobs" / "ab").mkdir(parents=True)
+    (tmp_path / "r" / "blobs" / "ab" / ("ab" + "0" * 62)).write_bytes(bomb)
+    with pytest.raises(repo_mod.RepoError):
+        repo.get_blob("ab" + "0" * 62)

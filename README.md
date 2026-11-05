@@ -1,59 +1,40 @@
 # Hermes Ark 🛡
 
-**Encrypted, versioned backups of your whole Hermes — with item-level restore.**
+**Encrypted, versioned backups of your whole Hermes — automatic, off-site, and restorable one piece at a time.**
 
-Hermes learns for months: memory, `SOUL.md`, self-written skills, cron jobs, sessions, profiles.
-One bad update, an over-eager "clean up your memory", a dead disk or a reclaimed VPS, and it is gone.
-`hermes backup` makes a one-off ZIP (with your API keys in plain text). Ark makes it **automatic,
-encrypted, deduplicated and restorable piece by piece**.
+![Hermes Ark in Hermes Desktop](docs/media/desktop-dark.png)
 
-> Status: work in progress for the Hermes Agent Plugin Hackathon (Nov 2026).
+Hermes learns for months: its memory, `SOUL.md`, skills it wrote itself, cron jobs, sessions, every profile.
+One over-eager *"clean up your memory"*, a bad update, a dead disk or a reclaimed VPS — and it is gone.
 
-## What works today (v0.4)
+| | `hermes backup` (built in) | memory-rewind | **Hermes Ark** |
+|---|---|---|---|
+| Automatic | ✗ manual | ✓ memory & skills | ✓ everything, before every memory/skill write |
+| Catches a wipe as it happens | ✗ | ✗ | ✓ health guard tells the agent *and* you |
+| Encrypted | ✗ (API keys in a plain zip) | ✗ | ✓ AES-256-GCM, credentials excluded by default |
+| Off-site (S3 / R2 / B2 / folder) | ✗ | ✗ | ✓ push, pull, new-machine recovery |
+| Deduplicated | ✗ full zip each time | ✓ git | ✓ content-addressed, chunked |
+| Restore one item | ✗ all or nothing | ✓ memory & skills | ✓ memory · SOUL · one skill · config · cron · a file · a profile |
+| Proves backups restore | ✗ | ✗ | ✓ `verify` |
+| Desktop UI | ✗ | ✗ | ✓ timeline, diffs, one-click restore |
 
-- `hermes ark init` — create a repository, encrypted with AES-256-GCM (key from your passphrase via scrypt).
-- `hermes ark snap [label]` — snapshot memory, SOUL, skills, config, cron, sessions (`state.db` copied safely while Hermes runs) and **every profile**.
-- Deduplication — unchanged files cost nothing; large files are chunked so an edited database stores only the changed MiB.
-- `hermes ark list` / `hermes ark diff [A] [B]` — see what changed (🧠 memory, 🛠 skills, ⚙ config…).
-- `hermes ark show [snap]` — what a snapshot holds, grouped as memory, soul, skills, config, cron, sessions, plugins, per profile.
-- **Item-level restore** — `hermes ark restore <what> [snap]` previews first and applies with `--yes`:
-  `all` · `memory` · `soul` · `skills` · `skill:<name>` · `config` · `cron` · `sessions` · `plugin:<name>` · `file:<path>` · `<profile>/memory`.
-  - A **safety snapshot** is taken before every restore, so a restore can itself be undone.
-  - Every blob is fetched and integrity-checked **before the first write**: a damaged backup never leaves a half-restored home.
-  - Writes are atomic, never follow symlinks out of the Hermes home, and the sessions database is only restored while the gateway is stopped.
-  - Credentials that were not captured are never deleted by a restore.
-- `/ark` in any chat (CLI, TUI, Desktop, Telegram, Discord…): `status`, `snap`, `list`, `diff`, `show`, `restore … yes`, `prune`.
+## Install
 
-### Off-site copy and moving to a new machine
+```bash
+hermes plugins install hermes-ark && hermes plugins enable hermes-ark
+echo 'ARK_PASSPHRASE=choose-a-long-passphrase' >> ~/.hermes/.env   # keep a copy somewhere safe
+hermes ark init        # creates the encrypted repository
+hermes ark snap first  # first snapshot; from now on Ark runs on its own
+```
 
-- **Remote** = `s3://bucket/prefix` on any S3-compatible storage (AWS S3, **Cloudflare R2 — 10 GB free**,
-  Backblaze B2, Wasabi, MinIO, Oracle Object Storage…) or a **folder** (USB drive, NAS, Syncthing/Dropbox folder).
-  S3 requests are signed with AWS Signature V4 implemented on the standard library (checked against AWS'
-  published test vector) — no boto3. With an encrypted repository the provider only ever sees ciphertext.
-- `hermes ark push` uploads what the remote lacks (blobs first, manifests last, so an interrupted upload never
-  exposes a snapshot that cannot be restored). Automatic after each background snapshot (`auto_push`).
-  `--mirror` also removes data pruned locally — refused across different repositories or from an empty one,
-  so a fresh machine can never wipe your off-site copy.
-- **New machine / dead disk:**
-  ```bash
-  hermes plugins install hermes-ark && hermes plugins enable hermes-ark
-  # put ARK_PASSPHRASE, ARK_S3_ACCESS_KEY_ID, ARK_S3_SECRET_ACCESS_KEY in ~/.hermes/.env
-  hermes ark pull --remote s3://my-bucket/hermes --endpoint https://<account>.r2.cloudflarestorage.com
-  hermes ark restore all          # preview
-  hermes ark restore all --yes    # your memory, SOUL, skills, cron, sessions and profiles are back
-  ```
-- `hermes ark verify [--remote] [--quick]` proves every snapshot can be restored: it downloads, decrypts and
-  re-hashes every blob a restore would need, and names the damaged snapshots and the newest intact one.
-  *A backup you have never tested is not a backup.* Also `/ark verify` from chat.
+In Hermes Desktop, enable **Hermes Ark** under *Capabilities → Plugins* to get the **Ark** page.
 
-### Autopilot (set and forget)
+## What happens automatically
 
-- **Checkpoint before every memory/skill write.** Ark wraps Hermes' `memory` and `skill_manage` tools
-  (`tool_execution` middleware) and saves a *brain* snapshot (memory, SOUL, skills, config, cron) right
-  before the change. Unchanged → nothing stored, so it costs a directory walk.
-- **Health guard.** After the write, Ark compares memory and skills before vs after. When memory shrinks
-  by more than half or several skills vanish in one call, the warning is added **inside the tool result**,
-  so the agent sees it immediately and tells you, with the exact undo command:
+- **Checkpoint before every memory/skill write.** Ark wraps Hermes' `memory` and `skill_manage` tools and saves a
+  *brain* snapshot (memory, SOUL, skills, config, cron) right before the change — nothing is stored when nothing changed.
+- **Health guard.** When memory shrinks by more than half or several skills vanish in one call, the warning goes
+  **into the tool result**, so the agent sees it at once and tells you — with the exact undo command:
 
   ```
   ⚠ Hermes Ark health guard:
@@ -61,50 +42,106 @@ encrypted, deduplicated and restorable piece by piece**.
     The previous version is saved in snapshot 20261105T111624556530Z-5531.
     To undo, the user can run: /ark restore memory 20261105T111624556530Z-5531 yes
   ```
-- **Full snapshots in the background** after sessions, at most every `interval_minutes` (default 60) of activity.
-- **Smart retention**, pruned daily: last 10 · hourly for a day · daily for a week · weekly for a month ·
-  monthly for a year. Snapshots you label yourself are kept. `hermes ark prune [--dry-run]`, `hermes ark forget <id>`.
-- **`ark_checkpoint` tool**: the agent saves a labelled snapshot before risky changes to Hermes itself
-  (merging skills, bulk-editing memory, reorganising cron). Restoring stays a user decision.
-- **Credentials are never captured** (`.env`, `auth.json`, vault files, pairing tokens, browser login stores) unless you enable `include_secrets` *and* the repository is encrypted.
+  Desktop shows the same alert on the Ark page and turns the status-bar shield into **⚠ Ark: check memory**.
+- **Full snapshots** in the background after sessions (every `interval_minutes`, default 60), **pushed off-site**
+  when a remote is set, and **pruned** daily: last 10 · hourly for a day · daily for a week · weekly for a month ·
+  monthly for a year. Snapshots you name yourself are kept.
+- **`ark_checkpoint` tool** — the agent saves a labelled snapshot before risky changes to Hermes itself.
+  Restoring is always your decision, never the agent's.
 
-## Roadmap (this week)
-
-- [x] Item-level restore with an automatic safety snapshot first
-- [x] Automatic snapshots before memory/skill writes and after sessions; smart retention
-- [x] Health guard: alert when memory or skills suddenly shrink
-- [x] Off-site: S3-compatible storage or a folder; push/pull to a new machine
-- [x] `verify` — prove every snapshot can actually be restored
-- [ ] Hermes Desktop timeline page
-
-## Install (development)
+## Restore — everything, or exactly the piece you lost
 
 ```bash
-git clone https://github.com/medomohamed22/hermes-ark ~/.hermes/plugins/hermes-ark
-hermes plugins enable hermes-ark
-echo 'ARK_PASSPHRASE=choose-a-long-passphrase' >> ~/.hermes/.env
-hermes ark init && hermes ark snap first
+hermes ark restore memory latest~1          # preview: shows every file that would change
+hermes ark restore memory latest~1 --yes    # apply
+hermes ark restore skill:weather 20261105   # one skill, by snapshot id prefix
+hermes ark restore work/memory              # one profile's memory
 ```
+
+From any chat (Telegram, Discord, CLI, TUI): `/ark restore memory <snapshot>` previews, `… yes` applies.
+In Desktop: pick a snapshot in the timeline → *Preview restore…* → *Restore*.
+
+![Restore preview](docs/media/restore-preview.png)
+
+- A **safety snapshot** is taken before every restore, so a restore can itself be undone.
+- Every blob is fetched and integrity-checked **before the first write** — a damaged backup never leaves a half-restored home.
+- Writes are atomic and never leave the Hermes home (no `..`, no drive letters, no symlink escapes, no setuid bits).
+- The sessions database is only restored while the gateway is stopped. Credentials that were never captured are never deleted.
+
+## Off-site and new machines
+
+Set `remote` to `s3://bucket/prefix` on any S3-compatible storage — AWS S3, **Cloudflare R2 (10 GB free)**,
+Backblaze B2, Wasabi, MinIO, Oracle — or to a **folder** (USB drive, NAS, a synced folder):
+
+```bash
+# ~/.hermes/.env: ARK_S3_ACCESS_KEY_ID=…  ARK_S3_SECRET_ACCESS_KEY=…
+hermes ark push                      # uploads only what the remote lacks (also automatic)
+hermes ark verify --remote           # downloads, decrypts and re-hashes every blob a restore needs
+```
+
+**Dead laptop / new VPS:**
+
+```bash
+hermes plugins install hermes-ark && hermes plugins enable hermes-ark
+# put ARK_PASSPHRASE and the S3 keys in ~/.hermes/.env
+hermes ark pull --remote s3://my-bucket/hermes --endpoint https://<account>.r2.cloudflarestorage.com
+hermes ark restore all --yes         # memory, SOUL, skills, cron, sessions and profiles are back
+```
+
+Uploads go blobs-first, manifests-last, so an interrupted push never exposes a snapshot that cannot be restored.
+`push --mirror` (propagate pruning) refuses to run between different repositories or from an empty one —
+a fresh machine can never wipe your off-site copy.
+
+## All commands
+
+| Terminal | Chat | |
+|---|---|---|
+| `hermes ark init` | | create the (encrypted) repository |
+| `hermes ark status` | `/ark` | protection, latest snapshot, off-site, guard alerts |
+| `hermes ark snap [label]` | `/ark snap [label]` | snapshot now |
+| `hermes ark list` · `show` · `diff [A] [B]` | `/ark list` · `show` · `diff` | browse history |
+| `hermes ark restore <what> [snap] [--yes]` | `/ark restore <what> [snap] [yes]` | preview, then restore |
+| `hermes ark push [--mirror]` · `pull` | `/ark push` | off-site copy |
+| `hermes ark verify [--remote] [--quick]` | `/ark verify [remote]` | prove backups restore |
+| `hermes ark prune [--dry-run]` · `forget <id>` | `/ark prune` | retention |
+
+Settings (Desktop *Settings → Plugins → Hermes Ark*, or `config.yaml` under `plugins.entries.hermes-ark.settings`):
+`repository`, `remote`, `s3_endpoint`, `s3_region`, `auto_snapshots`, `interval_minutes`, `health_guard`,
+`auto_push`, `include_secrets`, `exclude`, `keep_last` / `keep_hourly` / `keep_daily` / `keep_weekly` / `keep_monthly`.
+
+<p align="center"><img src="docs/media/desktop-light.png" alt="Ark page, light theme" width="720"></p>
+
+## How it works
+
+- **Engine (`arkcore/`)** — pure Python, no Hermes imports, no third-party dependencies beyond `cryptography`
+  (already a Hermes dependency). Content-addressed blobs (1 MiB chunks for large files, so an edited SQLite DB
+  stores only the pages that changed), one manifest per snapshot. Live SQLite databases are copied with the
+  online-backup API. S3 requests are signed with AWS SigV4 on the standard library, checked against AWS' published
+  test vector.
+- **Encryption** — a random master key wrapped by your passphrase (scrypt); AES-256-GCM on every object with the
+  object id as associated data; blob names are HMACs, so storage never sees content hashes. See [SECURITY.md](SECURITY.md).
+- **Plugin (`__init__.py`, `auto.py`, `cli.py`)** — `tool_execution` middleware, an `on_session_end` hook, the
+  `ark_checkpoint` tool, `hermes ark` and `/ark`. **Desktop (`desktop/plugin.js` + `dashboard/plugin_api.py`)** — the
+  Ark page, status-bar shield and palette commands, built only from the Desktop SDK.
 
 ## Disclosure
 
-- Reads files under your Hermes home (and its profiles) to back them up; writes only to the repository folder
-  (default `<hermes home>/plugin-data/hermes-ark/repo`, configurable).
-- Wraps the `memory` and `skill_manage` tools (middleware) to snapshot before and compare after; adds a
-  note to their result only when the health guard fires. Never blocks or alters the tool call itself.
-- Runs a background thread (`hermes-ark-snapshot`) after sessions for the periodic full snapshot.
-- Network: only when you configure an S3 `remote` — HTTPS requests to that endpoint (plain http only for
-  localhost). Uploaded objects are encrypted on this machine when the repository is encrypted.
-  S3 keys are read through Hermes' secret scope (`ARK_S3_ACCESS_KEY_ID`, `ARK_S3_SECRET_ACCESS_KEY`), never stored.
-- No subprocesses, no telemetry.
-- Credentials are excluded by default; the passphrase is read through Hermes' secret scope (`ARK_PASSPHRASE`) and never stored.
+- **Files:** reads your Hermes home (and profiles) to back it up; writes only to the repository folder (default
+  `<hermes home>/plugin-data/hermes-ark/repo`) and, on an explicit restore, into the Hermes home.
+- **Credentials:** `.env`, `auth.json`, vault files, pairing tokens, browser login stores and the Webapp session token
+  are never captured unless you enable `include_secrets` *and* the repository is encrypted. `ARK_PASSPHRASE` and the
+  S3 keys are read through Hermes' secret scope and never stored or logged.
+- **Tools:** wraps the `memory` and `skill_manage` tools (middleware) to snapshot before and compare after; it adds a
+  note to their result only when the health guard fires and never blocks or alters the call.
+- **Background:** one thread (`hermes-ark-snapshot`) after sessions for the periodic snapshot and auto-push.
+- **Network:** only when you configure an S3 `remote` — HTTPS to that endpoint (plain http only for localhost).
+- No subprocesses, no telemetry, no self-updating.
 
 ## Development
 
 ```bash
-python -m pytest tests
-# optional: run the S3 test against a real server
-ARK_TEST_S3_ENDPOINT=http://127.0.0.1:5055 ARK_TEST_S3_BUCKET=ark-test ARK_TEST_S3_KEY=... ARK_TEST_S3_SECRET=... python -m pytest tests
+python -m pytest tests                       # 55 tests: engine, restore, autopilot, off-site, Desktop API
+ARK_TEST_S3_ENDPOINT=… ARK_TEST_S3_BUCKET=… ARK_TEST_S3_KEY=… ARK_TEST_S3_SECRET=… python -m pytest tests  # + real S3
 hermes plugins validate . --install-deps
 ```
 

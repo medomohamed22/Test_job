@@ -29,7 +29,20 @@ EXCLUDED_ROOT_DIRS = frozenset({
     "browser_profiles",      # Browser Use CLI user-data (Login Data / Cookies)
     "logs", "audio_cache", "image_cache",                # regenerable
     "plugin-data/hermes-ark",  # never back up our own repository into itself
+    # Gateway runtime state: heartbeats, lifecycle, delivery queues' locks, update-check caches.
+    "state", "runtime", "plugin-update-checks", "source-checks",
+    # The Webapp's signed-in session token: a credential, and stale on any other machine.
+    "webapp",
 })
+
+# Root-level files that are machine state or regenerable caches, never user data.
+EXCLUDED_ROOT_FILES = frozenset({
+    "install_id",                          # this machine's identity; must not be cloned onto another
+    "gateway_state.json", "gateway.sock.path", "gateway-starts.log",
+    "models_dev_cache.json", "models_dev_cache.etag", "provider_models_cache.json",
+})
+# Inside cron/: the scheduler's own liveness markers.
+EXCLUDED_CRON_FILES = frozenset({"ticker_heartbeat", "ticker_last_success"})
 
 # ``cache/`` at a home root: only durable media / evidence the user cannot regenerate.
 KEPT_CACHE_SUBDIRS = frozenset({"images", "audio", "videos", "documents", "screenshots", "citations", "generated"})
@@ -89,6 +102,10 @@ def _excluded_under_home(rel_in_home: PurePosixPath, is_dir: bool) -> Optional[s
     if top == "profiles":
         return "profile-root"  # walked separately as its own home
     name = parts[-1]
+    if not is_dir and len(parts) == 1 and name in EXCLUDED_ROOT_FILES:
+        return "regenerable"
+    if not is_dir and len(parts) == 2 and top == "cron" and name in EXCLUDED_CRON_FILES:
+        return "runtime"
     if not is_dir and any(name.endswith(s) for s in SQLITE_SIDECARS):
         return "sqlite-sidecar"
     if not is_dir and (name.endswith(RUNTIME_SUFFIXES) or name.startswith(RUNTIME_PREFIXES)):
@@ -121,6 +138,8 @@ def scan(root: Path | str, include_secrets: bool = False, extra_excludes: Iterab
                     continue
                 if _excluded_under_home(rel, True):
                     continue
+                if rel.parts[:1] == ("desktop-plugins",) and len(rel.parts) == 2 and (child / ".hermes-package.json").exists():
+                    continue  # Hermes regenerates package desktop halves; hand-written desktop plugins are kept
                 if _is_secret(rel) and not include_secrets:
                     continue
                 if any((prefix + rel.as_posix()).startswith(e) for e in extra):

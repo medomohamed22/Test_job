@@ -134,7 +134,10 @@ def plan_restore(repo: Repository, snapshot_id: str, root: Path | str, selector:
 
 def _safe_target(root: Path, rel: str) -> Path:
     p = PurePosixPath(rel)
-    if p.is_absolute() or ".." in p.parts or not p.parts:
+    # Reject anything that is not a plain relative POSIX path: "..", absolute paths, and the
+    # Windows forms that would escape the home there (drive letters "C:", backslashes, NUL).
+    if (not p.parts or p.is_absolute() or ".." in p.parts
+            or any(":" in part or "\\" in part or "\x00" in part for part in p.parts)):
         raise RestoreError(f"refusing unsafe path in snapshot: {rel!r}")
     target = root.joinpath(*p.parts)
     # Never follow a symlinked parent out of the home.
@@ -157,7 +160,8 @@ def _atomic_write(target: Path, data: bytes, mode: int, mtime_ns: Optional[int])
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.chmod(tmp, mode or 0o600)
+        # Permission bits only: never restore setuid/setgid/sticky, whatever a manifest says.
+        os.chmod(tmp, (mode & 0o777) or 0o600)
         if mtime_ns:
             os.utime(tmp, ns=(mtime_ns, mtime_ns))
         os.replace(tmp, target)

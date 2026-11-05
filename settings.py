@@ -13,7 +13,19 @@ from .arkcore.repo import Repository
 
 PLUGIN_NAME = "hermes-ark"
 
-_get_config: Callable[[str, Any], Any] = lambda key, default=None: default  # replaced in register()
+def _config_fallback(key: str, default: Any = None) -> Any:
+    """Read ``plugins.entries.hermes-ark.settings.<key>`` straight from config.yaml. Used where the
+    plugin context is not available (the Desktop backend runs ``plugin_api.py`` as its own module)."""
+    try:
+        from hermes_cli.config import load_config_readonly
+        entry = ((load_config_readonly() or {}).get("plugins") or {}).get("entries", {}).get(PLUGIN_NAME) or {}
+        settings = entry.get("settings") or entry.get("config") or {}
+        return settings.get(key, default)
+    except Exception:
+        return default
+
+
+_get_config: Callable[[str, Any], Any] = _config_fallback  # replaced in register()
 _set_config: Callable[[str, Any], None] = lambda key, value: None
 
 
