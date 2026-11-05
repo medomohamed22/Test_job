@@ -214,3 +214,31 @@ def test_guard_also_catches_direct_file_edits(plugin, hermes_home):
     assert not plugin.auto._touches_brain("write_file", {"path": "/tmp/project/main.py"})
     assert not plugin.auto._touches_brain("terminal", {"command": "pytest -q"})
     assert not plugin.auto._touches_brain("write_file", {"path": str(hermes_home / "logs" / "x.log")})
+
+
+def test_guard_catches_skills_deleted_one_call_at_a_time(plugin, hermes_home):
+    import shutil
+    for n in ("a", "b", "c", "d", "e", "f"):
+        (hermes_home / "skills" / n).mkdir()
+        (hermes_home / "skills" / n / "SKILL.md").write_text("# " + n)
+
+    def delete(name):
+        def run(args):
+            shutil.rmtree(hermes_home / "skills" / name)
+            return json.dumps({"success": True})
+        return run
+
+    notes = []
+    for n in ("a", "b", "c"):                       # three separate tool calls in one conversation
+        out = json.loads(plugin.auto.tool_execution(tool_name="skill_manage", args={"action": "delete", "name": n},
+                                                    next_call=delete(n), session_id="s1"))
+        notes.append(out.get("ark_health_guard"))
+    assert notes[0] is None                         # one skill: normal
+    assert notes[1] and "skill(s) removed" in notes[1]   # second deletion: cumulative alarm
+    sid = notes[1].split("snapshot ")[1].split(".")[0]
+    msg = plugin.cli.handle_slash(f"restore skills {sid} yes")
+    assert "Restored" in msg and (hermes_home / "skills" / "a" / "SKILL.md").exists()
+    # A different conversation starts from its own baseline.
+    out = json.loads(plugin.auto.tool_execution(tool_name="skill_manage", args={"action": "delete", "name": "d"},
+                                                next_call=delete("d"), session_id="s2"))
+    assert out.get("ark_health_guard") is None

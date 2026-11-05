@@ -232,7 +232,18 @@ def _touches_brain(tool_name: str, args: Any) -> bool:
     return False
 
 
-def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **_: Any) -> Any:
+# Per-conversation baseline, so losses spread over several tool calls (deleting skills one by one)
+# are caught too. Expires after a quiet hour; each alarm is reported once per conversation.
+_BASELINE_TTL_S = 3600
+_baselines: dict[str, dict] = {}
+_baseline_lock = threading.Lock()
+
+
+def _conversation_key(ctx: dict) -> str:
+    return str(ctx.get("session_id") or ctx.get("task_id") or "default")
+
+
+def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **ctx: Any) -> Any:
     """Middleware around writes to Hermes' own brain: checkpoint before, guard after."""
     try:
         watched = _touches_brain(tool_name, args)
@@ -241,25 +252,43 @@ def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **_: A
     if not watched:
         return next_call(args)
     snapshot_id = before = None
-    guard_on = False
+    key = _conversation_key(ctx)
     try:
         st = S.load()
-        guard_on = st.health_guard
         action = (args or {}).get("action", "") if isinstance(args, dict) else ""
-        if guard_on:
+        if st.health_guard:
             before = measure(S.hermes_home())
         snapshot_id = brain_checkpoint(f"before {tool_name} {action}".strip())
+        if before is not None:
+            now = time.time()
+            with _baseline_lock:
+                for k in [k for k, b in _baselines.items() if now - b["seen"] > _BASELINE_TTL_S]:
+                    del _baselines[k]
+                b = _baselines.setdefault(key, {"state": before, "snapshot": snapshot_id, "reported": set(), "seen": now})
+                b["seen"] = now
     except Exception as exc:  # never block the tool
         logger.debug("Hermes Ark pre-write checkpoint skipped: %s", exc)
     result = next_call(args)
     if before is None:
         return result
     try:
-        alarms = compare(before, measure(S.hermes_home()))
+        after = measure(S.hermes_home())
+        alarms = compare(before, after)
+        restore_from = snapshot_id
+        with _baseline_lock:
+            b = _baselines.get(key)
+        if b is not None:
+            # Cumulative loss since this conversation's first write wins when it is bigger.
+            cumulative = compare(b["state"], after)
+            if cumulative and len(cumulative) >= len(alarms):
+                alarms, restore_from = cumulative, b["snapshot"] or snapshot_id
+            fresh = [a for a in alarms if a.message not in b["reported"]]
+            b["reported"].update(a.message for a in fresh)
+            alarms = fresh
         if alarms:
-            note = format_alarms(alarms, snapshot_id)
+            note = format_alarms(alarms, restore_from)
             for a in alarms:
-                record_event("guard", a.message, snapshot_id)
+                record_event("guard", a.message, restore_from)
             logger.warning("Hermes Ark health guard: %s", "; ".join(a.message for a in alarms))
             return _attach_note(result, note)
     except Exception as exc:
