@@ -1,11 +1,11 @@
 name: hermes-ark
-version: "0.6.1"
+version: "0.6.2"
 description: "Encrypted, versioned backups of your whole Hermes - memory, SOUL, skills, config, cron, sessions and every profile - with item-level restore. Deduplicated snapshots in a repository you control; credentials are never captured unless you opt in and the repository is encrypted."
 author: medomohamed22
 license: MIT
 homepage: https://github.com/medomohamed22/hermes-ark
 tags: [backup, restore, snapshots, encryption, memory, skills]
-requires_hermes: ">=0.21"
+requires_hermes: ">=0.21.6"
 python_dependencies: []
 provides_tools:
   - ark_checkpoint

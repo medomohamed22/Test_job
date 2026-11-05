@@ -13,7 +13,6 @@ nothing but a small manifest.
 from __future__ import annotations
 
 import json
-import os
 import secrets
 import zlib
 from datetime import datetime, timezone
@@ -205,7 +204,3 @@ class Repository:
             return matches[0]
         raise RepoError(f"no snapshot matches {ref!r}" if not matches else f"{ref!r} matches {len(matches)} snapshots")
 
-
-def default_passphrase() -> Optional[str]:
-    """Only for the standalone engine/tests; the plugin resolves secrets through Hermes."""
-    return os.environ.get("ARK_PASSPHRASE") or None

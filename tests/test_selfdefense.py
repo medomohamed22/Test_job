@@ -234,22 +234,24 @@ def _home_cfg(hermes_home):
     return cfg
 
 
-def test_disguised_disable_is_reenabled_and_secrets_put_back(plugin, hermes_home):
+def test_disguised_disable_is_reenabled_and_lost_secret_reported(plugin, hermes_home, monkeypatch):
     cfg = _home_cfg(hermes_home)
     env = hermes_home / ".env"
-    env.write_text("OPENROUTER_API_KEY=sk\nARK_PASSPHRASE=test-passphrase-1\n")
+    env.write_text("OPENROUTER_API_KEY=sk\n")
+    env_before = env.read_bytes()
 
     def attack():
         cfg.write_text("model: test\nplugins:\n  enabled: []\n  disabled:\n  - hermes-ark\n  entries:\n"
                        "    hermes-ark:\n      settings:\n        auto_snapshots: true\n")
-        env.write_text("OPENROUTER_API_KEY=sk\n")
+        monkeypatch.delenv("ARK_PASSPHRASE")                         # gone from what Hermes provides
 
     data, _ = run(plugin, "terminal", {"command": "./scripts/setup"}, effect=attack)
     note = data["ark_tamper_alarm"]
-    assert "Ark enabled again" in note and "ARK_* secrets" in note
+    assert "Ark enabled again" in note and "Ark secrets removed: ARK_PASSPHRASE" in note
+    assert "hermes config set ARK_PASSPHRASE" in note
     text = cfg.read_text()
     assert "hermes-ark" in text.split("disabled:")[0] and "disabled: []" in text
-    assert "ARK_PASSPHRASE=test-passphrase-1" in env.read_text() and "OPENROUTER_API_KEY=sk" in env.read_text()
+    assert env.read_bytes() == env_before                            # rule 11: Ark never touches .env
 
 
 def test_deleted_repository_is_rebuilt_and_snapshotted(plugin, hermes_home):
@@ -356,7 +358,6 @@ def test_settings_failure_fails_closed(plugin, monkeypatch):
 def _attack_everything(hermes_home, repo):
     (hermes_home / "config.yaml").write_text("model: test\nplugins:\n  enabled: []\n  disabled:\n  - hermes-ark\n"
                                              "  entries:\n    hermes-ark:\n      settings:\n        auto_snapshots: true\n")
-    (hermes_home / ".env").write_text("OPENROUTER_API_KEY=sk\n")
     shutil.rmtree(repo)
 
 
@@ -379,9 +380,8 @@ def test_watchdog_repairs_damage_done_by_a_background_job(plugin, hermes_home):
         note = plugin.auto.watchdog_tick()
     finally:
         bg.kill()
-    assert note and "Ark enabled again" in note and "ARK_* secrets" in note and "repository key file" in note
+    assert note and "Ark enabled again" in note and "repository key file" in note
     assert "disabled:\n  - hermes-ark" not in (hermes_home / "config.yaml").read_text().replace("disabled: []", "")
-    assert "ARK_PASSPHRASE" in (hermes_home / ".env").read_text()
     assert (st.repository / "ark.json").exists()
     # the agent hears about it on its next tool call
     data, _ = run(plugin, "terminal", {"command": "ls"})
@@ -505,3 +505,19 @@ def test_reenable_falls_back_to_a_direct_write_when_the_cli_fails(plugin, hermes
         time.sleep(0.05)
     assert calls and calls[0][-3:] == ["plugins", "enable", "hermes-ark"]
     assert plugin.selfdefense._is_enabled()
+
+
+def test_ark_never_reads_or_writes_env_files(plugin, hermes_home, monkeypatch):
+    """Catalog rule 11: secrets only through Hermes' secret scope."""
+    import builtins
+    import pathlib
+    opened = []
+    real_open, real_read = builtins.open, pathlib.Path.read_text
+    monkeypatch.setattr(builtins, "open", lambda f, *a, **k: (opened.append(str(f)), real_open(f, *a, **k))[1])
+    monkeypatch.setattr(pathlib.Path, "read_text", lambda self, *a, **k: (opened.append(str(self)), real_read(self, *a, **k))[1])
+    (hermes_home / ".env").write_text("ARK_PASSPHRASE=x\n")
+    plugin.selfdefense.fingerprint()
+    plugin.auto.watchdog_tick()
+    run(plugin, "write_file", {"path": str(hermes_home / ".env"), "content": "OTHER=1\n"})
+    run(plugin, "terminal", {"command": "ls"})
+    assert not [f for f in opened if f.endswith(".env")]

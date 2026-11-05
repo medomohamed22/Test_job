@@ -134,21 +134,32 @@ Settings (Desktop *Settings → Plugins → Hermes Ark*, or `config.yaml` under 
 
 ## Disclosure
 
-- **Files:** reads your Hermes home (and profiles) to back it up; writes only to the repository folder (default
-  `<hermes home>/plugin-data/hermes-ark/repo`) and, on an explicit restore, into the Hermes home.
-- **Credentials:** `.env`, `auth.json`, vault files, pairing tokens, browser login stores and the Webapp session token
-  are never captured unless you enable `include_secrets` *and* the repository is encrypted. `ARK_PASSPHRASE` and the
-  S3 keys are read through Hermes' secret scope and never stored or logged.
-- **Tools:** wraps the `memory` and `skill_manage` tools (middleware) to snapshot before and compare after; it adds a
-  note to their result only when the health guard fires and never blocks or alters the call.
-- **Background:** one thread (`hermes-ark-snapshot`) after sessions for the periodic snapshot and auto-push.
+- **Files read:** your Hermes home (and profiles) to back it up. Credential files (`.env`, `auth.json`, vault files,
+  pairing tokens, browser login stores, the Webapp session token) are skipped — read and backed up only if you turn
+  on `include_secrets`, which also requires an encrypted repository. Ark itself never reads `.env` for its own
+  secrets: `ARK_PASSPHRASE` and the S3 keys come through Hermes' secret scope and are never stored or logged.
+- **Files written:** the repository folder (default `<hermes home>/plugin-data/hermes-ark/repo`) and Ark's own data
+  folder; the Hermes home only on a restore you confirm. Self-defense (below) may also write back Ark's **own**
+  settings and enabled state in `config.yaml` (through Hermes' config API), its repository key file and its own
+  plugin files, each to the value it had before an agent tool call changed it. It never writes secrets.
+- **Tools:** `tool_execution` middleware on every tool call. For `memory`/`skill_manage` (and edits of Hermes' own
+  files) it snapshots before and compares after, adding a note to the result when the health guard fires. For all
+  tools it **refuses** calls that would delete, rewrite or reconfigure Ark's backups or settings, or switch Ark off
+  (the tool returns a "BLOCKED by Hermes Ark" result instead of running), and refuses again a call that already
+  damaged Ark. Read-only Ark commands and everything else run unchanged. You can lift this with
+  `allow_agent_admin: true`.
+- **Background:** a snapshot thread after sessions (periodic snapshot, retention, auto-push), and a watchdog thread in
+  the process that runs the agent, checking Ark every 10 seconds (a few small file reads).
+- **Subprocess:** only when something disabled Ark while the agent was active, Ark runs
+  `python -m hermes_cli.main plugins enable hermes-ark` once (fixed arguments, no shell) so the running gateway loads
+  it again; it falls back to a direct config write.
 - **Network:** only when you configure an S3 `remote` — HTTPS to that endpoint (plain http only for localhost).
-- No subprocesses, no telemetry, no self-updating.
+- No telemetry, no self-updating: restoring Ark's own files only puts back the exact files that were installed.
 
 ## Development
 
 ```bash
-python -m pytest tests                       # 92 tests incl. security & fuzzing: engine, restore, autopilot, off-site, Desktop API
+python -m pytest tests                       # 174 tests incl. security, fuzzing and prompt-injection attacks
 ARK_TEST_S3_ENDPOINT=… ARK_TEST_S3_BUCKET=… ARK_TEST_S3_KEY=… ARK_TEST_S3_SECRET=… python -m pytest tests  # + real S3
 hermes plugins validate . --install-deps
 ```

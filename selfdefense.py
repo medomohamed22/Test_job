@@ -12,13 +12,15 @@ would weaken Ark are refused before they run:
   ``hermes plugins disable hermes-ark``, ``hermes config set plugins.entries.hermes-ark…``,
   ``rm -rf …/plugin-data/hermes-ark``, ``sed -i '/ARK_PASSPHRASE/d' .env`` …
 * file writes (Hermes' tools, V4A patches, MCP file servers) into those folders, or edits of
-  ``config.yaml``/``.env`` that change Ark's part — judged on the resulting file.
+  ``config.yaml`` that change Ark's part (judged on the resulting file), and writes of ``.env`` that
+  would drop or change Ark's ``ARK_*`` secrets (judged on the call's arguments; Ark never opens ``.env``).
 
 Text matching cannot see through every disguise (base64, scripts, a background job that acts after the
 tool returned), so Ark also fingerprints itself around every tool call and between tool calls. When it
-finds a change — settings, enabled state, ``ARK_*`` secrets, the repository key file, snapshots, data,
-its own code — it tells the user and repairs what it can: settings, enabled state, secrets, key file and
-code are put back, and a fresh snapshot is taken at once so protection resumes.
+finds a change — settings, enabled state, ``ARK_*`` secrets (seen only through Hermes' secret scope),
+the repository key file, snapshots, data, its own code — it tells the user and repairs what it can:
+settings, enabled state, key file and code are put back, and a fresh snapshot is taken at once so
+protection resumes. Secrets are never written: the user is told how to put them back.
 
 The user stays in charge: the same commands work in their own terminal, ``/ark`` works in chat, and
 ``allow_agent_admin: true`` lifts all of this.
@@ -233,6 +235,30 @@ def _load_yaml_text(text: str) -> Any:
         return yaml.safe_load(text)
 
 
+ARK_SECRETS = ("ARK_PASSPHRASE", "ARK_S3_ACCESS_KEY_ID", "ARK_S3_SECRET_ACCESS_KEY")
+_SECRET_SALT = os.urandom(32)            # per process: the fingerprints below are no offline oracle
+
+
+def _secret_state() -> dict[str, str]:
+    """Which ARK_* secrets Hermes currently provides (through the secret scope, never by reading .env),
+    as keyed digests so a changed value is noticed without keeping it."""
+    import hashlib
+    import hmac
+    out = {}
+    try:
+        from agent.secret_scope import get_secret
+    except Exception:
+        return out
+    for name in ARK_SECRETS:
+        try:
+            value = get_secret(name)
+        except Exception:
+            value = None
+        if value:
+            out[name] = hmac.new(_SECRET_SALT, str(value).encode(), hashlib.sha256).hexdigest()[:16]
+    return out
+
+
 def _env_ark_lines(text: str) -> dict[str, str]:
     out = {}
     for line in text.splitlines():
@@ -289,10 +315,7 @@ def _file_violation(tool_name: str, args: dict, st: S.Settings) -> Optional[str]
                         or "enabled" in low or "disabled" in low or tool_name not in ("write_file", "patch"):
                     return "the edit may change Ark's settings in config.yaml"
             if target.name == ".env" and _inside(target, home):
-                try:
-                    current = set(_env_ark_lines(target.read_text(encoding="utf-8"))) if target.exists() else set()
-                except OSError:
-                    current = set()
+                current = set(_secret_state())               # what Hermes provides now; .env is never read
                 if tool_name == "write_file" and isinstance(args.get("content"), str):
                     if current - set(_env_ark_lines(args["content"])):
                         return "the new .env drops Ark's secrets (Ark could no longer open its backups)"
@@ -414,12 +437,7 @@ def fingerprint() -> dict:
         out["config"], out["settings"] = None, {}
     except Exception:
         out["config"] = "unreadable"
-    try:
-        out["env"] = _env_ark_lines((home / ".env").read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        out["env"] = {}
-    except Exception:
-        out["env"] = "unreadable"
+    out["env"] = _secret_state()
     repo = _settings().repository
     out["repo_path"] = str(repo)
     try:
@@ -449,8 +467,9 @@ def tamper_changes(before: dict, after: dict, *, ark_busy: bool, deleted_by_ark:
     if "env" in scopes and before.get("env") != after.get("env"):
         b, a = before.get("env"), after.get("env")
         gone = set(b) - set(a) if isinstance(b, dict) and isinstance(a, dict) else set()
-        out["env"] = [f"Ark secrets removed from .env: {', '.join(sorted(gone))}" if gone else
-                      "Ark secrets in .env changed"]
+        out["env"] = [f"Ark secrets removed: {', '.join(sorted(gone))} (put them back with `hermes config set "
+                      f"{sorted(gone)[0]} …` — Ark never writes secrets itself)" if gone else
+                      "Ark secrets (ARK_*) were changed"]
     if "code" in scopes and before.get("code") != after.get("code"):
         out["code"] = ["Ark's own plugin code was modified"]
     if "repo" in scopes and before.get("repo_path") == after.get("repo_path"):
@@ -544,20 +563,6 @@ def _enable_via_cli(enabled: list, disabled: list) -> None:
 enable_ark = _enable_via_cli                  # tests replace this with _save_enabled
 
 
-def _restore_env(before: Any, after: Any) -> bool:
-    if not isinstance(before, dict) or not isinstance(after, dict) or before == after or not before:
-        return False
-    path = S.hermes_home() / ".env"
-    try:
-        text = path.read_text(encoding="utf-8")
-        mode = path.stat().st_mode & 0o777
-    except FileNotFoundError:
-        text, mode = "", 0o600
-    kept = [ln for ln in text.splitlines() if not re.match(r"^\s*(?:export\s+)?ARK_[A-Z0-9_]+\s*=", ln)]
-    _atomic_write(path, ("\n".join(kept + list(before.values())) + "\n").encode(), mode)
-    return True
-
-
 def _restore_code(before: Any, after: Any) -> list[str]:
     if not isinstance(before, dict) or not isinstance(after, dict):
         return []
@@ -601,11 +606,6 @@ def repair(before: dict, after: dict, *, scopes: tuple = SCOPES) -> list[str]:
                 done.append("Ark enabled again")
         except Exception as exc:
             logger.warning("Hermes Ark could not re-enable itself: %s", exc)
-    try:
-        if "env" in scopes and _restore_env(before.get("env"), after.get("env")):
-            done.append("ARK_* secrets in .env")
-    except Exception as exc:
-        logger.warning("Hermes Ark could not restore its secrets: %s", exc)
     if "repo" in scopes and before.get("repo_path") == after.get("repo_path") and before.get("ark_json") \
             and after.get("ark_json") != before.get("ark_json"):
         try:
