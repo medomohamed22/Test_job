@@ -31,6 +31,12 @@ from .arkcore.snapshot import BRAIN, create_snapshot
 logger = logging.getLogger(__name__)
 
 WATCHED_TOOLS = frozenset({"memory", "skill_manage"})
+# Generic tools that can also rewrite Hermes' own files (``echo > ~/.hermes/memories/MEMORY.md``,
+# a write_file on a SKILL.md). Watched only when the call actually points at those files.
+FILE_TOOLS = frozenset({"write_file", "patch"})
+COMMAND_TOOLS = frozenset({"terminal", "execute_code"})
+_BRAIN_MARKERS = ("MEMORY.md", "USER.md", "SOUL.md", "memories", "/skills", "skills/", ".hermes", "config.yaml",
+                  "cron/", "jobs.json")
 PRUNE_EVERY_S = 24 * 3600
 _EVENTS_MAX = 200
 _state_lock = threading.Lock()
@@ -193,9 +199,46 @@ def _attach_note(result: Any, note: str) -> Any:
     return result
 
 
+def _touches_brain(tool_name: str, args: Any) -> bool:
+    """Does this call write (or might it write) Hermes' memory, SOUL, skills, config or cron?"""
+    if tool_name in WATCHED_TOOLS:
+        return True
+    if not isinstance(args, dict):
+        return False
+    if tool_name in FILE_TOOLS:
+        raw = str(args.get("path") or args.get("file_path") or "")
+        if not raw:
+            return False
+        try:
+            from pathlib import Path
+            home = S.hermes_home().resolve()
+            target = Path(raw).expanduser()
+            target = (target if target.is_absolute() else Path.cwd() / target).resolve()
+            rel = target.relative_to(home)
+        except (ValueError, OSError, RuntimeError):
+            return False
+        from .arkcore.scanner import classify
+        from .arkcore.snapshot import BRAIN
+        return classify(rel.as_posix())[1] in BRAIN
+    if tool_name in COMMAND_TOOLS:
+        text = str(args.get("command") or args.get("code") or "")
+        if not text:
+            return False
+        try:
+            home = str(S.hermes_home())
+        except Exception:
+            home = ""
+        return (bool(home) and home in text) or any(m in text for m in _BRAIN_MARKERS)
+    return False
+
+
 def tool_execution(tool_name: str = "", args: Any = None, next_call=None, **_: Any) -> Any:
-    """Middleware around memory/skill writes: checkpoint before, guard after."""
-    if tool_name not in WATCHED_TOOLS:
+    """Middleware around writes to Hermes' own brain: checkpoint before, guard after."""
+    try:
+        watched = _touches_brain(tool_name, args)
+    except Exception:
+        watched = False
+    if not watched:
         return next_call(args)
     snapshot_id = before = None
     guard_on = False

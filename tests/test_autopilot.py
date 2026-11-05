@@ -197,3 +197,20 @@ def test_push_pull_verify_and_restore_keeps_offsite_settings(plugin, hermes_home
     repo = plugin.settings.open_repo()
     sid, note = plugin.cli._restore_target(repo, "latest")
     assert sid != repo.snapshot_ids()[-1] and "safety" in note
+
+
+def test_guard_also_catches_direct_file_edits(plugin, hermes_home):
+    (hermes_home / "memories" / "MEMORY.md").write_text("- important fact\n" * 30)
+    mem = str(hermes_home / "memories" / "MEMORY.md")
+
+    def shell_wipe(args):                       # what `echo "" > MEMORY.md` via the terminal tool does
+        (hermes_home / "memories" / "MEMORY.md").write_text("")
+        return json.dumps({"output": "", "exit_code": 0})
+
+    out = json.loads(plugin.auto.tool_execution(tool_name="terminal", args={"command": f'echo "" > {mem}'}, next_call=shell_wipe))
+    assert "health guard" in out["ark_health_guard"]
+    assert plugin.auto._touches_brain("write_file", {"path": str(hermes_home / "skills" / "weather" / "SKILL.md")})
+    assert plugin.auto._touches_brain("patch", {"path": mem})
+    assert not plugin.auto._touches_brain("write_file", {"path": "/tmp/project/main.py"})
+    assert not plugin.auto._touches_brain("terminal", {"command": "pytest -q"})
+    assert not plugin.auto._touches_brain("write_file", {"path": str(hermes_home / "logs" / "x.log")})
